@@ -3,6 +3,8 @@
 module Grape
   class Router
     class Pattern
+      DEFAULT_CAPTURES = %w[format version].freeze
+
       attr_reader :origin, :path, :pattern, :to_regexp, :captures_default
 
       extend Forwardable
@@ -44,7 +46,7 @@ module Grape
       end
 
       def regex_captures_default(regex)
-        names = regex.names - %w[format version] # remove default format and version
+        names = regex.names - DEFAULT_CAPTURES # remove default format and version
         names.to_h { |k| [k, ''] }
       end
 
