@@ -5,7 +5,7 @@ module Grape
     class Route
       extend Forwardable
 
-      attr_reader :app, :pattern, :request_method, :capture_index
+      attr_reader :app, :pattern, :request_method, :capture_index, :options
 
       def_delegators :pattern, :path, :origin
       # params must be handled in this class to avoid method redefined warning
@@ -13,12 +13,9 @@ module Grape
 
       def initialize(method, pattern, **options)
         @request_method = upcase_method(method)
+        @options = options
         @pattern = Grape::Router::Pattern.new(pattern, **options)
         @attributes = Grape::Router::AttributeTranslator.new(**options)
-      end
-
-      def options
-        @attributes.to_h
       end
 
       def exec(env)
