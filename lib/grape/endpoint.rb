@@ -135,7 +135,7 @@ module Grape
     end
 
     def routes
-      @routes ||= endpoints ? endpoints.collect(&:routes).flatten : to_routes
+      @routes ||= endpoints&.map(&:routes)&.flatten || to_routes
     end
 
     def reset_routes!
@@ -145,17 +145,15 @@ module Grape
     end
 
     def mount_in(router)
-      if endpoints
-        endpoints.each { |e| e.mount_in(router) }
-      else
-        reset_routes!
-        routes.each do |route|
-          methods = [route.request_method]
-          methods << Rack::HEAD if !namespace_inheritable(:do_not_route_head) && route.request_method == Rack::GET
-          methods.each do |method|
-            route = Grape::Router::Route.new(method, route.origin, **route.attributes.to_h) unless route.request_method == method
-            router.append(route.apply(self))
-          end
+      return endpoints.each { |e| e.mount_in(router) } if endpoints
+
+      reset_routes!
+      routes.each do |route|
+        methods = [route.request_method]
+        methods << Rack::HEAD if !namespace_inheritable(:do_not_route_head) && route.request_method == Rack::GET
+        methods.each do |method|
+          route = Grape::Router::Route.new(method, route.origin, **route.options) unless route.request_method == method
+          router.append(route.apply(self))
         end
       end
     end

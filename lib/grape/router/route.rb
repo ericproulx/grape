@@ -5,17 +5,20 @@ module Grape
     class Route
       extend Forwardable
 
-      attr_reader :app, :pattern, :options, :attributes
-      attr_accessor :index
+      attr_reader :app, :pattern, :request_method, :capture_index
 
       def_delegators :pattern, :path, :origin
       # params must be handled in this class to avoid method redefined warning
-      delegate Grape::Router::AttributeTranslator::ROUTE_ATTRIBUTES - [:params] => :attributes
+      delegate Grape::Router::AttributeTranslator::ROUTE_ATTRIBUTES - [:params] => :@attributes
 
       def initialize(method, pattern, **options)
-        @options = options
+        @request_method = upcase_method(method)
         @pattern = Grape::Router::Pattern.new(pattern, **options)
-        @attributes = Grape::Router::AttributeTranslator.new(**options, request_method: upcase_method(method))
+        @attributes = Grape::Router::AttributeTranslator.new(**options)
+      end
+
+      def options
+        @attributes.to_h
       end
 
       def exec(env)
@@ -30,7 +33,7 @@ module Grape
       def match?(input)
         return false if input.blank?
 
-        attributes.forward_match ? input.start_with?(pattern.origin) : pattern.match?(input)
+        @attributes.forward_match ? input.start_with?(origin) : pattern.match?(input)
       end
 
       def params(input = nil)
@@ -42,10 +45,15 @@ module Grape
         parsed.compact.symbolize_keys
       end
 
+      def to_regexp(index)
+        @capture_index = "_#{index}"
+        Regexp.new("(?<#{@capture_index}>#{pattern.to_regexp})")
+      end
+
       private
 
       def params_without_input
-        pattern.captures_default.merge(attributes.params)
+        pattern.captures_default.merge(@attributes.params)
       end
 
       def upcase_method(method)
