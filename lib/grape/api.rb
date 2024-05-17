@@ -203,7 +203,8 @@ module Grape
       end
 
       def mounted_instances
-        instances - [base_instance]
+        wrapped_base_instance = Array.wrap(base_instance)
+        instances.delete_if { |i| i == wrapped_base_instance }
       end
     end
   end

@@ -46,8 +46,9 @@ module Grape
       end
 
       def regex_captures_default(regex)
-        names = regex.names - DEFAULT_CAPTURES # remove default format and version
-        names.to_h { |k| [k, ''] }
+        regex.names
+             .delete_if { |n| DEFAULT_CAPTURES.include?(n) }
+             .to_h { |k| [k, ''] }
       end
 
       def build_path_from_pattern(pattern, anchor: false)

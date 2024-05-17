@@ -209,11 +209,11 @@ module Grape
 
       def require_required_and_optional_fields(context, opts)
         if context == :all
-          optional_fields = Array(opts[:except])
-          required_fields = opts[:using].keys - optional_fields
+          optional_fields = Array.wrap(opts[:except])
+          required_fields = opts[:using].keys.delete_if { |k| optional_fields.include?(k) }
         else # context == :none
-          required_fields = Array(opts[:except])
-          optional_fields = opts[:using].keys - required_fields
+          required_fields = Array.wrap(opts[:except])
+          optional_fields = opts[:using].keys.delete_if { |k| required_fields.include?(k) }
         end
         required_fields.each do |field|
           field_opts = opts[:using][field]
@@ -229,7 +229,11 @@ module Grape
 
       def require_optional_fields(context, opts)
         optional_fields = opts[:using].keys
-        optional_fields -= Array(opts[:except]) unless context == :all
+        unless context == :all
+          except_fields = Array.wrap(opts[:except])
+          optional_fields.reject! { |f| except_fields.include?(f) }
+        end
+
         optional_fields.each do |field|
           field_opts = opts[:using][field]
           optional(field, field_opts) if field_opts
@@ -436,14 +440,11 @@ module Grape
         return unless validations.key?(:coerce)
 
         coerce_options = {
-          type: validations[:coerce],
-          method: validations[:coerce_with],
-          message: validations[:coerce_message]
+          type: validations.delete(:coerce),
+          method: validations.delete(:coerce_with),
+          message: validations.delete(:coerce_message)
         }
         validate('coerce', coerce_options, attrs, doc, opts)
-        validations.delete(:coerce_with)
-        validations.delete(:coerce)
-        validations.delete(:coerce_message)
       end
 
       def guess_coerce_type(coerce_type, *values_list)

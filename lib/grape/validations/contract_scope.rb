@@ -49,14 +49,10 @@ module Grape
             return
           end
 
-          errors = []
-
-          res.errors.messages.each do |message|
+          errors = res.errors.messages.map do |message|
             full_name = message.path.first.to_s
-
-            full_name += "[#{message.path[1..].join('][')}]" if message.path.size > 1
-
-            errors << Grape::Exceptions::Validation.new(params: [full_name], message: message.text)
+            full_name << "[#{message.path[1..].join('][')}]" if message.path.size > 1
+            Grape::Exceptions::Validation.new(params: [full_name], message: message.text)
           end
 
           raise Grape::Exceptions::ValidationArrayErrors.new(errors)
