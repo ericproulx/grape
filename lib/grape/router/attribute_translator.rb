@@ -25,13 +25,21 @@ module Grape
         @attributes = attributes
       end
 
+      def [](attr)
+        @attributes[attr]
+      end
+
+      def []=(attr, value)
+        @attributes[attr] = value
+      end
+
       ROUTE_ATTRIBUTES.each do |attr|
         define_method attr do
-          @attributes[attr]
+          self[attr]
         end
 
         define_method(:"#{attr}=") do |val|
-          @attributes[attr] = val
+          self[attr] = val
         end
       end
 
@@ -41,9 +49,9 @@ module Grape
 
       def method_missing(method_name, *args)
         if setter?(method_name)
-          @attributes[method_name.to_s.chomp('=').to_sym] = args.first
+          self[method_name.to_s.chomp('=').to_sym] = args.first
         else
-          @attributes[method_name]
+          self[method_name]
         end
       end
 
