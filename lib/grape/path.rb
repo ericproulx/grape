@@ -58,7 +58,7 @@ module Grape
     end
 
     def path
-      Grape::Router.normalize_path(PartsCache[parts])
+      PartsCache[parts]
     end
 
     def path_with_suffix
@@ -74,7 +74,7 @@ module Grape
     class PartsCache < Grape::Util::Cache
       def initialize
         @cache = Hash.new do |h, parts|
-          h[parts] = -parts.join('/')
+          h[parts] = Grape::Router.normalize_path(parts.join('/'))
         end
       end
     end
