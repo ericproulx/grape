@@ -3248,7 +3248,13 @@ You can disable parsing for a content-type with `nil`. For example, `parser :jso
 
 ## JSON and XML Processors
 
-Grape uses `JSON` and `ActiveSupport::XmlMini` for JSON and XML parsing by default. It also detects and supports [multi_json](https://github.com/intridea/multi_json) and [multi_xml](https://github.com/sferik/multi_xml). Adding those gems to your Gemfile and requiring them will enable them and allow you to swap the JSON and XML back-ends.
+### Parsing
+
+Grape uses `JSON` and `ActiveSupport::XmlMini` for JSON and XML parsing by default.
+It also detects and supports [multi_json](https://github.com/intridea/multi_json) and [multi_xml](https://github.com/sferik/multi_xml). Adding those gems to your Gemfile and requiring them will enable them and allow you to swap the JSON and XML back-ends.
+
+#### to_xml
+In order to generate xml, Grape uses `to_xml` from `ActiveSupport` but it also requires `Builder`. Add `builder` to your Gemfile if your application generates xml.
 
 ## RESTful Model Representations
 
