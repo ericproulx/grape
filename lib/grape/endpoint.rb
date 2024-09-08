@@ -328,7 +328,9 @@ module Grape
 
     def build_helpers
       helpers = namespace_stackable(:helpers)
-      Module.new { helpers&.each { |mod_to_include| include mod_to_include } }
+      return if helpers.empty?
+
+      Module.new { helpers.each { |mod_to_include| include mod_to_include } }
     end
 
     private :build_stack, :build_helpers
@@ -347,7 +349,7 @@ module Grape
       @lazy_initialize_lock.synchronize do
         return true if @lazy_initialized
 
-        @helpers = build_helpers.tap { |mod| self.class.send(:include, mod) }
+        @helpers = build_helpers&.tap { |mod| self.class.include mod }
         @app = options[:app] || build_stack(@helpers)
 
         @lazy_initialized = true

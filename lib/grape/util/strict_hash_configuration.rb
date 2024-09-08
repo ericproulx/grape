@@ -76,30 +76,19 @@ module Grape
       end
 
       def self.module(*args)
-        new_module = Module.new do
+        new_config_class = config_class(*args)
+        Module.new do
           extend ActiveSupport::Concern
           include DSL
-        end
 
-        new_module.tap do |mod|
-          class_mod = create_class_mod(args)
+          class_methods do
+            def config_context
+              @config_context ||= config_class.new
+            end
 
-          mod.const_set(:ClassMethods, class_mod)
-        end
-      end
-
-      def self.create_class_mod(args)
-        new_module = Module.new do
-          def config_context
-            @config_context ||= config_class.new
-          end
-        end
-
-        new_module.tap do |class_mod|
-          new_config_class = config_class(*args)
-
-          class_mod.send(:define_method, :config_class) do
-            @config_class ||= new_config_class
+            define_method :config_class do
+              @config_class ||= new_config_class
+            end
           end
         end
       end

@@ -33,8 +33,8 @@ module Grape
         #     end
         #
         def helpers(*new_modules, &block)
-          include_new_modules(new_modules) if new_modules.any?
-          include_block(block) if block
+          include_new_modules(new_modules)
+          include_block(block)
           include_all_in_scope if !block && new_modules.empty?
         end
 
@@ -45,6 +45,8 @@ module Grape
         end
 
         def include_block(block)
+          return unless block
+
           Module.new.tap do |mod|
             make_inclusion(mod) { mod.class_eval(&block) }
           end
@@ -58,7 +60,7 @@ module Grape
 
         def include_all_in_scope
           Module.new.tap do |mod|
-            namespace_stackable(:helpers).each { |mod_to_include| mod.send :include, mod_to_include }
+            namespace_stackable(:helpers).each { |mod_to_include| mod.include(mod_to_include) }
             change!
           end
         end
