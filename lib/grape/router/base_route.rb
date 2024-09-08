@@ -23,7 +23,7 @@ module Grape
 
       def to_regexp(index)
         @index = index
-        Regexp.new("(?<#{regexp_capture_index}>#{pattern_regexp})")
+        Regexp.new(/(?<#{regexp_capture_index}>#{pattern_regexp})/)
       end
 
       class CaptureIndexCache < Grape::Util::Cache
