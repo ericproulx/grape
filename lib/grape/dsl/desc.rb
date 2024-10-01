@@ -50,10 +50,15 @@ module Grape
       #     end
       #
       def desc(description, options = {}, &config_block)
-        endpoint_configuration = defined?(configuration) ? configuration : {}
-        opts = Grape::Util::ApiDescription.new(description, endpoint_configuration, **options, &config_block).to_h
-        namespace_setting :description, opts
-        route_setting :description, opts
+        settings =
+          if config_block
+            endpoint_config = defined?(configuration) ? configuration : nil
+            Grape::Util::ApiDescription.new(description, endpoint_config, &config_block).to_h
+          else
+            options.merge(description: description)
+          end
+        namespace_setting :description, settings
+        route_setting :description, settings
       end
     end
   end
