@@ -49,6 +49,7 @@ module Grape
       #       # ...
       #     end
       #
+
       def desc(description, options = {}, &config_block)
         settings =
           if config_block
@@ -57,6 +58,7 @@ module Grape
           else
             options.merge(description: description)
           end
+
         namespace_setting :description, settings
         route_setting :description, settings
       end
