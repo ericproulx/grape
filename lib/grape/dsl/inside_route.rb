@@ -434,7 +434,7 @@ module Grape
                          end
 
           object_class.ancestors.each do |potential|
-            entity_class ||= (namespace_stackable_with_hash(:representations) || {})[potential]
+            entity_class ||= (namespace_stackable_with_hash(:representations))[potential]
           end
 
           entity_class ||= object_class.const_get(:Entity) if object_class.const_defined?(:Entity) && object_class.const_get(:Entity).respond_to?(:represent)

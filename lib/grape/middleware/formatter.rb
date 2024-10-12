@@ -6,13 +6,11 @@ module Grape
       CHUNKED = 'chunked'
       FORMAT = 'format'
 
-      def default_options
-        {
-          default_format: :txt,
-          formatters: {},
-          parsers: {}
-        }
-      end
+      DEFAULT_OPTIONS =  {
+        default_format: :txt,
+        formatters: {},
+        parsers: {}
+      }.freeze
 
       def before
         negotiate_content_type

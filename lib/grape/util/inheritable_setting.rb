@@ -34,6 +34,7 @@ module Grape
         self.point_in_time_copies = []
 
         self.parent = nil
+        yield self if block_given?
       end
 
       # Return the class-level global properties.
@@ -63,7 +64,7 @@ module Grape
       # changed via #inherit_from, it will copy that inheritence to any copies
       # which were made.
       def point_in_time_copy
-        self.class.new.tap do |new_setting|
+        self.class.new do |new_setting|
           point_in_time_copies << new_setting
           new_setting.point_in_time_copies = []
 

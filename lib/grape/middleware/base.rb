@@ -9,6 +9,7 @@ module Grape
       attr_reader :app, :env, :options
 
       TEXT_HTML = 'text/html'
+      DEFAULT_OPTIONS = {}.freeze
 
       # @param [Rack Application] app The standard argument for a Rack middleware.
       # @param [Hash] options A hash of options, simply stored for use by subclasses.
@@ -19,7 +20,7 @@ module Grape
       end
 
       def default_options
-        {}
+        self.class::DEFAULT_OPTIONS
       end
 
       def call(env)

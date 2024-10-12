@@ -19,7 +19,7 @@ module Grape
       # Fetch our current inheritable settings, which are inherited by
       # nested scopes but not shared across siblings.
       def inheritable_setting
-        @inheritable_setting ||= Grape::Util::InheritableSetting.new.tap { |new_settings| new_settings.inherit_from top_level_setting }
+        @inheritable_setting ||= Grape::Util::InheritableSetting.new { |new_settings| new_settings.inherit_from top_level_setting }
       end
 
       # @param type [Symbol]
@@ -99,15 +99,15 @@ module Grape
       end
 
       def namespace_stackable_with_hash(key)
-        settings = get_or_set :namespace_stackable, key, nil
-        return if settings.blank?
+        settings = namespace_stackable(key)
+        return {} if settings.blank?
 
-        settings.each_with_object({}) { |value, result| result.deep_merge!(value) }
+        settings.inject(:deep_merge!)
       end
 
       def namespace_reverse_stackable_with_hash(key)
-        settings = get_or_set :namespace_reverse_stackable, key, nil
-        return if settings.blank?
+        settings = namespace_reverse_stackable(key)
+        return {} if settings.blank?
 
         settings.each_with_object({}) do |setting, result|
           result.merge!(setting) { |_k, s1, _s2| s1 }
@@ -133,7 +133,7 @@ module Grape
       # parent's, but separate so we won't modify it. Every call to this
       # method should have an answering call to #namespace_end.
       def namespace_start
-        @inheritable_setting = Grape::Util::InheritableSetting.new.tap { |new_settings| new_settings.inherit_from inheritable_setting }
+        @inheritable_setting = Grape::Util::InheritableSetting.new { |new_settings| new_settings.inherit_from inheritable_setting }
       end
 
       # Set the inheritable settings pointer back up by one level.
@@ -166,7 +166,7 @@ module Grape
       # Builds the current class :inheritable_setting. If available, it inherits from
       # the superclass's :inheritable_setting.
       def build_top_level_setting
-        Grape::Util::InheritableSetting.new.tap do |setting|
+        Grape::Util::InheritableSetting.new do |setting|
           # Doesn't try to inherit settings from +Grape::API::Instance+ which also responds to
           # +inheritable_setting+, however, it doesn't contain any user-defined settings.
           # Otherwise, it would lead to an extra instance of +Grape::Util::InheritableSetting+

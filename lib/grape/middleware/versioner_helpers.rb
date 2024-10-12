@@ -5,39 +5,22 @@ module Grape
     module VersionerHelpers
       DEFAULT_PATTERN = /.*/i.freeze
       DEFAULT_PARAMETER = 'apiver'
-
-      def default_options
-        {
-          versions: nil,
-          prefix: nil,
-          mount_path: nil,
-          pattern: DEFAULT_PATTERN,
-          version_options: {
-            strict: false,
-            cascade: true,
-            parameter: DEFAULT_PARAMETER
-          }
+      DEFAULT_OPTIONS = {
+        versions: nil,
+        prefix: nil,
+        mount_path: nil,
+        pattern: DEFAULT_PATTERN,
+        version_options: {
+          strict: false,
+          cascade: true,
+          parameter: DEFAULT_PARAMETER
         }
-      end
+      }.freeze
 
-      def versions
-        options[:versions]
-      end
-
-      def prefix
-        options[:prefix]
-      end
-
-      def mount_path
-        options[:mount_path]
-      end
-
-      def pattern
-        options[:pattern]
-      end
-
-      def version_options
-        options[:version_options]
+      DEFAULT_OPTIONS.keys.each do |option|
+        define_method(option) do
+          options[option]
+        end
       end
 
       def strict?
