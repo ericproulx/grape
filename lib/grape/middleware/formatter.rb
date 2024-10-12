@@ -6,7 +6,7 @@ module Grape
       CHUNKED = 'chunked'
       FORMAT = 'format'
 
-      DEFAULT_OPTIONS =  {
+      DEFAULT_OPTIONS = {
         default_format: :txt,
         formatters: {},
         parsers: {}

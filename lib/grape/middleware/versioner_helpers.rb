@@ -17,7 +17,7 @@ module Grape
         }
       }.freeze
 
-      DEFAULT_OPTIONS.keys.each do |option|
+      DEFAULT_OPTIONS.each_key do |option|
         define_method(option) do
           options[option]
         end
