@@ -8,8 +8,8 @@ module Grape
 
       DEFAULT_OPTIONS = {
         default_format: :txt,
-        formatters: {},
-        parsers: {}
+        formatters: nil,
+        parsers: nil
       }.freeze
 
       def before

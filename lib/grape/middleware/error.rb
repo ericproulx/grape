@@ -5,11 +5,11 @@ module Grape
     class Error < Base
       DEFAULT_OPTIONS = {
         default_status: 500, # default status returned on error
-        default_message: '',
+        default_message: nil,
         format: :txt,
         helpers: nil,
-        formatters: {},
-        error_formatters: {},
+        formatters: nil,
+        error_formatters: nil,
         rescue_all: false, # true to rescue all exceptions
         rescue_grape_exceptions: false,
         rescue_subclasses: true, # rescue subclasses of exceptions listed
@@ -17,8 +17,8 @@ module Grape
           backtrace: false, # true to display backtrace, true to let Grape handle Grape::Exceptions
           original_exception: false # true to display exception
         },
-        rescue_handlers: {}, # rescue handler blocks
-        base_only_rescue_handlers: {}, # rescue handler blocks rescuing only the base class
+        rescue_handlers: nil, # rescue handler blocks
+        base_only_rescue_handlers: nil, # rescue handler blocks rescuing only the base class
         all_rescue_handler: nil # rescue handler block to rescue from all exceptions
       }.freeze
 
