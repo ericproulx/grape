@@ -6,8 +6,6 @@ module Grape
       CHUNKED = 'chunked'
       FORMAT = 'format'
 
-      DEFAULT_OPTIONS = {}.freeze
-
       attr_reader :default_format, :formatters, :parsers
 
       def initialize(app, *options)
