@@ -14,6 +14,7 @@ module Grape
     }.freeze
 
     MIME_TYPES = Grape::ContentTypes::DEFAULTS.except(:serializable_hash).invert.freeze
+    TEXT_HTML = 'text/html'
 
     def content_types_for(from_settings)
       from_settings.presence || DEFAULTS

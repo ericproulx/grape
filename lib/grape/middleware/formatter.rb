@@ -6,11 +6,16 @@ module Grape
       CHUNKED = 'chunked'
       FORMAT = 'format'
 
-      DEFAULT_OPTIONS = {
-        default_format: :txt,
-        formatters: nil,
-        parsers: nil
-      }.freeze
+      DEFAULT_OPTIONS = {}.freeze
+
+      attr_reader :default_format, :formatters, :parsers
+
+      def initialize(app, *options)
+        super
+        @default_format = @options.fetch(:default_format, :txt)
+        @formatters = @options[:formatters]
+        @parsers = @options[:parsers]
+      end
 
       def before
         negotiate_content_type
@@ -40,7 +45,7 @@ module Grape
           end
         else
           # Allow content-type to be explicitly overwritten
-          formatter = fetch_formatter(headers, options)
+          formatter = fetch_formatter(headers)
           bodymap = ActiveSupport::Notifications.instrument('format_response.grape', formatter: formatter, env: env) do
             bodies.collect { |body| formatter.call(body, env) }
           end
@@ -50,9 +55,9 @@ module Grape
         throw :error, status: 500, message: e.message, backtrace: e.backtrace, original_exception: e
       end
 
-      def fetch_formatter(headers, options)
+      def fetch_formatter(headers)
         api_format = mime_types[headers[Rack::CONTENT_TYPE]] || env[Grape::Env::API_FORMAT]
-        Grape::Formatter.formatter_for(api_format, options[:formatters])
+        Grape::Formatter.formatter_for(api_format, formatters)
       end
 
       # Set the content type header for the API format if it is not already present.
@@ -92,10 +97,10 @@ module Grape
 
       # store parsed input in env['api.request.body']
       def read_rack_input(body)
-        fmt = request.media_type ? mime_types[request.media_type] : options[:default_format]
+        fmt = request.media_type ? mime_types[request.media_type] : default_format
 
         throw :error, status: 415, message: "The provided content-type '#{request.media_type}' is not supported." unless content_type_for(fmt)
-        parser = Grape::Parser.parser_for fmt, options[:parsers]
+        parser = Grape::Parser.parser_for fmt, parsers
         if parser
           begin
             body = (env[Grape::Env::API_REQUEST_BODY] = parser.call(body, env))
@@ -118,8 +123,8 @@ module Grape
       end
 
       def negotiate_content_type
-        fmt = format_from_extension || format_from_params || options[:format] || format_from_header || options[:default_format]
-        if content_type_for(fmt)
+        fmt = format_from_extension || format_from_params || format_option || format_from_header || default_format
+        if content_type?(fmt)
           env[Grape::Env::API_FORMAT] = fmt
         else
           throw :error, status: 406, message: "The requested format '#{fmt}' is not supported."
@@ -132,7 +137,7 @@ module Grape
         if parts.size > 1
           extension = parts.last
           # avoid symbol memory leak on an unknown format
-          return extension.to_sym if content_type_for(extension)
+          return extension.to_sym if content_type?(extension)
         end
         nil
       end
@@ -140,7 +145,7 @@ module Grape
       def format_from_params
         fmt = Rack::Utils.parse_nested_query(env[Rack::QUERY_STRING])[FORMAT]
         # avoid symbol memory leak on an unknown format
-        return fmt.to_sym if content_type_for(fmt)
+        return fmt.to_sym if content_type?(fmt)
 
         fmt
       end

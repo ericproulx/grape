@@ -3,28 +3,39 @@
 module Grape
   module Middleware
     class Error < Base
-      DEFAULT_OPTIONS = {
-        default_status: 500, # default status returned on error
-        default_message: nil,
-        format: :txt,
-        helpers: nil,
-        formatters: nil,
-        error_formatters: nil,
-        rescue_all: false, # true to rescue all exceptions
-        rescue_grape_exceptions: false,
-        rescue_subclasses: true, # rescue subclasses of exceptions listed
-        rescue_options: {
-          backtrace: false, # true to display backtrace, true to let Grape handle Grape::Exceptions
-          original_exception: false # true to display exception
-        },
-        rescue_handlers: nil, # rescue handler blocks
-        base_only_rescue_handlers: nil, # rescue handler blocks rescuing only the base class
-        all_rescue_handler: nil # rescue handler block to rescue from all exceptions
+      DEFAULT_STATUS = 500
+      DEFAULT_RESCUE_OPTIONS = {
+        backtrace: false, # true to display backtrace, true to let Grape handle Grape::Exceptions
+        original_exception: false # true to display exception
       }.freeze
+
+      attr_reader :all_rescue_handler,
+                  :base_only_rescue_handlers,
+                  :default_error_formatter,
+                  :default_message,
+                  :default_status,
+                  :error_formatters,
+                  :grape_exceptions_rescue_handler,
+                  :rescue_all,
+                  :rescue_grape_exceptions,
+                  :rescue_handlers,
+                  :rescue_options
 
       def initialize(app, *options)
         super
         self.class.include(@options[:helpers]) if @options[:helpers]
+        @all_rescue_handler = @options[:all_rescue_handler]
+        @base_only_rescue_handlers = @options[:base_only_rescue_handlers]
+        @default_error_formatter = @options[:default_error_formatter]
+        @default_message = @options[:default_message]
+        @default_status = @options.fetch(:default_status, DEFAULT_STATUS)
+        @error_formatters = @options[:error_formatters]
+        @format_option = @options.fetch(:format, :txt)
+        @grape_exceptions_rescue_handler = @options[:grape_exceptions_rescue_handler]
+        @rescue_all = @options.fetch(:rescue_all, false)
+        @rescue_grape_exceptions = @options.fetch(:rescue_grape_exceptions, false)
+        @rescue_handlers = @options[:rescue_handlers]
+        @rescue_options = @options.fetch(:rescue_options, DEFAULT_RESCUE_OPTIONS)
       end
 
       def call!(env)
@@ -37,13 +48,13 @@ module Grape
       private
 
       def rack_response(status, headers, message)
-        message = Rack::Utils.escape_html(message) if headers[Rack::CONTENT_TYPE] == TEXT_HTML
+        message = Rack::Utils.escape_html(message) if headers[Rack::CONTENT_TYPE] == Grape::ContentTypes::TEXT_HTML
         Rack::Response.new(Array.wrap(message), Rack::Utils.status_code(status), Grape::Util::Header.new.merge(headers))
       end
 
       def format_message(message, backtrace, original_exception = nil)
-        format = env[Grape::Env::API_FORMAT] || options[:format]
-        formatter = Grape::ErrorFormatter.formatter_for(format, options[:error_formatters], options[:default_error_formatter])
+        format = env[Grape::Env::API_FORMAT] || format_option
+        formatter = Grape::ErrorFormatter.formatter_for(format, error_formatters, default_error_formatter)
         return formatter.call(message, backtrace, options, env, original_exception) if formatter
 
         throw :error,
@@ -62,8 +73,8 @@ module Grape
       end
 
       def error_response(error = {})
-        status = error[:status] || options[:default_status]
-        message = error[:message] || options[:default_message]
+        status = error[:status] || default_status
+        message = error[:message] || default_message
         headers = { Rack::CONTENT_TYPE => content_type }.tap do |h|
           h.merge!(error[:headers]) if error[:headers].is_a?(Hash)
         end
@@ -77,7 +88,9 @@ module Grape
       end
 
       def rescue_handler_for_base_only_class(klass)
-        error, handler = options[:base_only_rescue_handlers]&.find { |err, _handler| klass == err }
+        return unless base_only_rescue_handlers
+
+        error, handler = base_only_rescue_handlers.find { |err, _handler| klass == err }
 
         return unless error
 
@@ -85,7 +98,9 @@ module Grape
       end
 
       def rescue_handler_for_class_or_its_ancestor(klass)
-        error, handler = options[:rescue_handlers]&.find { |err, _handler| klass <= err }
+        return unless rescue_handlers
+
+        error, handler = rescue_handlers.find { |err, _handler| klass <= err }
 
         return unless error
 
@@ -95,16 +110,16 @@ module Grape
       def rescue_handler_for_grape_exception(klass)
         return unless klass <= Grape::Exceptions::Base
         return method(:error_response) if klass == Grape::Exceptions::InvalidVersionHeader
-        return unless options[:rescue_grape_exceptions] || !options[:rescue_all]
+        return unless rescue_grape_exceptions || !rescue_all
 
-        options[:grape_exceptions_rescue_handler] || method(:error_response)
+        grape_exceptions_rescue_handler || method(:error_response)
       end
 
       def rescue_handler_for_any_class(klass)
         return unless klass <= StandardError
-        return unless options[:rescue_all] || options[:rescue_grape_exceptions]
+        return unless rescue_all || rescue_grape_exceptions
 
-        options[:all_rescue_handler] || method(:default_rescue_handler)
+        all_rescue_handler || method(:default_rescue_handler)
       end
 
       def run_rescue_handler(handler, error, endpoint)
@@ -127,7 +142,7 @@ module Grape
         end
       end
 
-      def error!(message, status = options[:default_status], headers = {}, backtrace = [], original_exception = nil)
+      def error!(message, status = default_status, headers = {}, backtrace = [], original_exception = nil)
         rack_response(
           status, headers.reverse_merge(Rack::CONTENT_TYPE => content_type),
           format_message(message, backtrace, original_exception)

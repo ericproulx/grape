@@ -6,21 +6,18 @@ module Grape
       include Helpers
       include Grape::DSL::Headers
 
-      attr_reader :app, :env, :options
+      attr_reader :app, :env, :options, :format_option, :content_types_option
 
-      TEXT_HTML = 'text/html'
       DEFAULT_OPTIONS = {}.freeze
 
       # @param [Rack Application] app The standard argument for a Rack middleware.
       # @param [Hash] options A hash of options, simply stored for use by subclasses.
       def initialize(app, *options)
         @app = app
-        @options = options.any? ? default_options.deep_merge(options.shift) : default_options
+        @options = options.any? ? options.shift : DEFAULT_OPTIONS
+        @format_option = @options[:format]
+        @content_types_option = @options[:content_types]
         @app_response = nil
-      end
-
-      def default_options
-        self.class::DEFAULT_OPTIONS
       end
 
       def call(env)
@@ -62,7 +59,7 @@ module Grape
       end
 
       def content_types
-        @content_types ||= Grape::ContentTypes.content_types_for(options[:content_types])
+        @content_types ||= Grape::ContentTypes.content_types_for(content_types_option)
       end
 
       def mime_types
@@ -73,8 +70,12 @@ module Grape
         content_types_indifferent_access[format]
       end
 
+      def content_type?(format)
+        content_types_indifferent_access.key?(format)
+      end
+
       def content_type
-        content_type_for(env[Grape::Env::API_FORMAT] || options[:format]) || TEXT_HTML
+        content_type_for(env[Grape::Env::API_FORMAT] || format_option) || Grape::ContentTypes::TEXT_HTML
       end
 
       private
