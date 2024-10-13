@@ -73,10 +73,6 @@ module Grape
         content_types_indifferent_access[format]
       end
 
-      def content_type_for?(format)
-        content_types_indifferent_access.key?(format)
-      end
-
       def content_type
         content_type_for(env[Grape::Env::API_FORMAT] || options[:format]) || TEXT_HTML
       end
