@@ -15,7 +15,13 @@ module Grape
       # @param [Hash] options A hash of options, simply stored for use by subclasses.
       def initialize(app, *options)
         @app = app
-        @options = options.any? ? default_options.deep_merge(options.shift) : default_options
+        @options =
+          if options.any?
+            hash_options = options.shift
+            hash_options == default_options ? default_options : default_options.deep_merge(hash_options)
+          else
+            default_options
+          end
         @app_response = nil
       end
 
@@ -71,6 +77,10 @@ module Grape
 
       def content_type_for(format)
         content_types_indifferent_access[format]
+      end
+
+      def content_type_for?(format)
+        content_types_indifferent_access.key?(format)
       end
 
       def content_type
