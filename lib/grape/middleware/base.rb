@@ -15,13 +15,7 @@ module Grape
       # @param [Hash] options A hash of options, simply stored for use by subclasses.
       def initialize(app, *options)
         @app = app
-        @options =
-          if options.any?
-            hash_options = options.shift
-            hash_options == default_options ? default_options : default_options.deep_merge(hash_options)
-          else
-            default_options
-          end
+        @options = options.any? ? default_options.deep_merge(options.shift) : default_options
         @app_response = nil
       end
 
