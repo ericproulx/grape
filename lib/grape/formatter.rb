@@ -2,7 +2,7 @@
 
 module Grape
   module Formatter
-    DEFAULTS_API_FORMATS = %i(json jsonapi serializable_hash txt xml).freeze
+    DEFAULTS_FORMATS = %i(json jsonapi serializable_hash txt xml).freeze
     DEFAULT_LAMBDA_FORMATTER = ->(obj, _env) { obj }
 
     class << self
@@ -17,7 +17,7 @@ module Grape
       private
 
       def try_defaults(api_format)
-        return if DEFAULTS_API_FORMATS.exclude?(api_format)
+        return if DEFAULTS_FORMATS.exclude?(api_format)
 
         DefaultFormatterCache[api_format]
       end

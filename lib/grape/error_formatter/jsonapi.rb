@@ -2,7 +2,7 @@
 
 module Grape
   module ErrorFormatter
-    module Json
+    module Jsonapi
       extend Base
 
       class << self

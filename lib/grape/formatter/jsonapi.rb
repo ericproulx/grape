@@ -2,7 +2,7 @@
 
 module Grape
   module Formatter
-    module JsonApi
+    module Jsonapi
       extend Json
     end
   end

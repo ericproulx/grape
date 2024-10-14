@@ -36,6 +36,7 @@ module Grape
         @rescue_grape_exceptions = @options.fetch(:rescue_grape_exceptions, false)
         @rescue_handlers = @options[:rescue_handlers]
         @rescue_options = @options.fetch(:rescue_options, DEFAULT_RESCUE_OPTIONS)
+        @options = nil
       end
 
       def call!(env)
@@ -55,7 +56,7 @@ module Grape
       def format_message(message, backtrace, original_exception = nil)
         format = env[Grape::Env::API_FORMAT] || format_option
         formatter = Grape::ErrorFormatter.formatter_for(format, error_formatters, default_error_formatter)
-        return formatter.call(message, backtrace, options, env, original_exception) if formatter
+        return formatter.call(message, backtrace, rescue_options, env, original_exception) if formatter
 
         throw :error,
               status: 406,

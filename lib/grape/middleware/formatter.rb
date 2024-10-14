@@ -13,6 +13,7 @@ module Grape
         @default_format = @options.fetch(:default_format, :txt)
         @formatters = @options[:formatters]
         @parsers = @options[:parsers]
+        @options = nil
       end
 
       def before

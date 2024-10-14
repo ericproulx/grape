@@ -30,6 +30,7 @@ module Grape
           @strict = version_options.fetch(:strict, false)
           @versions = @options[:versions]
           @vendor = version_options[:vendor]
+          @options = nil
         end
 
         def error_headers
