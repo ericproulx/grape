@@ -192,7 +192,7 @@ module Grape
       #
       def rack_response(message, status = 200, headers = { Rack::CONTENT_TYPE => content_type })
         Grape.deprecator.warn('The rack_response method has been deprecated, use error! instead.')
-        message = Rack::Utils.escape_html(message) if headers[Rack::CONTENT_TYPE] == 'text/html'
+        message = Rack::Utils.escape_html(message) if headers[Rack::CONTENT_TYPE] == Grape::ContentTypes::TEXT_HTML
         Rack::Response.new(Array.wrap(message), Rack::Utils.status_code(status), headers)
       end
 
@@ -434,7 +434,7 @@ module Grape
                          end
 
           object_class.ancestors.each do |potential|
-            entity_class ||= (namespace_stackable_with_hash(:representations) || {})[potential]
+            entity_class ||= namespace_stackable_with_hash(:representations)[potential]
           end
 
           entity_class ||= object_class.const_get(:Entity) if object_class.const_defined?(:Entity) && object_class.const_get(:Entity).respond_to?(:represent)

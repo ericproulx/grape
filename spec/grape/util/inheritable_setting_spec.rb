@@ -7,7 +7,7 @@ describe Grape::Util::InheritableSetting do
   end
 
   let(:parent) do
-    described_class.new.tap do |settings|
+    described_class.new do |settings|
       settings.global[:global_thing] = :global_foo_bar
       settings.namespace[:namespace_thing] = :namespace_foo_bar
       settings.namespace_inheritable[:namespace_inheritable_thing] = :namespace_inheritable_foo_bar
@@ -18,7 +18,7 @@ describe Grape::Util::InheritableSetting do
   end
 
   let(:other_parent) do
-    described_class.new.tap do |settings|
+    described_class.new do |settings|
       settings.namespace[:namespace_thing] = :namespace_foo_bar_other
       settings.namespace_inheritable[:namespace_inheritable_thing] = :namespace_inheritable_foo_bar_other
       settings.namespace_stackable[:namespace_stackable_thing] = :namespace_stackable_foo_bar_other

@@ -2,7 +2,7 @@
 
 module Grape
   module ErrorFormatter
-    module Json
+    module SerializableHash
       extend Base
 
       class << self

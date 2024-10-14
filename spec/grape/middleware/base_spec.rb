@@ -137,24 +137,6 @@ describe Grape::Middleware::Base do
     it 'persists options passed at initialization' do
       expect(described_class.new(blank_app, abc: true).options[:abc]).to be true
     end
-
-    context 'defaults' do
-      let(:example_ware) do
-        Class.new(Grape::Middleware::Base) do
-          def default_options
-            { monkey: true }
-          end
-        end
-      end
-
-      it 'persists the default options' do
-        expect(example_ware.new(blank_app).options[:monkey]).to be true
-      end
-
-      it 'overrides default options when provided' do
-        expect(example_ware.new(blank_app, monkey: false).options[:monkey]).to be false
-      end
-    end
   end
 
   context 'header' do

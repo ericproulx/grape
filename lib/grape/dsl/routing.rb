@@ -143,7 +143,7 @@ module Grape
             path: paths,
             for: self,
             route_options: {
-              params: namespace_stackable_with_hash(:params) || {}
+              params: namespace_stackable_with_hash(:params)
             }.deep_merge(route_setting(:description) || {}).deep_merge(route_options || {})
           }
 

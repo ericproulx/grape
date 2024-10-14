@@ -12,6 +12,8 @@ module Grape
     attr_accessor :block, :source, :options
     attr_reader :env, :request, :headers, :params
 
+    DEFAULT_ERROR_STATUS = 500
+
     class << self
       def new(...)
         self == Endpoint ? Class.new(Endpoint).new(...) : super
@@ -86,7 +88,7 @@ module Grape
       route_setting(:saved_validations, namespace_stackable(:validations))
 
       namespace_stackable(:representations, []) unless namespace_stackable(:representations)
-      namespace_inheritable(:default_error_status, 500) unless namespace_inheritable(:default_error_status)
+      namespace_inheritable(:default_error_status, DEFAULT_ERROR_STATUS) unless namespace_inheritable(:default_error_status)
 
       @options = options
 
