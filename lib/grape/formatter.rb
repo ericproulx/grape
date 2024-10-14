@@ -2,7 +2,7 @@
 
 module Grape
   module Formatter
-    DEFAULTS_FORMATS = %i(json jsonapi serializable_hash txt xml).freeze
+    DEFAULTS_FORMATS = %i[json jsonapi serializable_hash txt xml].freeze
     DEFAULT_LAMBDA_FORMATTER = ->(obj, _env) { obj }
 
     class << self
