@@ -213,7 +213,7 @@ module Grape
               config[:endpoint].options[:options_route_enabled] = true unless self.class.namespace_inheritable(:do_not_route_options) || allowed_methods.include?(Rack::OPTIONS)
 
               attributes = config.merge(allowed_methods: allowed_methods, allow_header: allow_header)
-              generate_not_allowed_method(config[:pattern], **attributes)
+              generate_not_allowed_method(config[:pattern], attributes)
             end
           end
         end
@@ -240,15 +240,15 @@ module Grape
 
       # Generate a route that returns an HTTP 405 response for a user defined
       # path on methods not specified
-      def generate_not_allowed_method(pattern, allowed_methods: [], **attributes)
+      def generate_not_allowed_method(pattern, attributes)
         supported_methods =
           if self.class.namespace_inheritable(:do_not_route_options)
             Grape::Http::Headers::SUPPORTED_METHODS
           else
             Grape::Http::Headers::SUPPORTED_METHODS_WITHOUT_OPTIONS
           end
-        not_allowed_methods = supported_methods - allowed_methods
-        @router.associate_routes(pattern, not_allowed_methods: not_allowed_methods, **attributes)
+        not_allowed_methods = supported_methods - attributes[:allowed_methods]
+        @router.associate_routes(pattern, attributes.merge(not_allowed_methods: not_allowed_methods))
       end
 
       # Allows definition of endpoints that ignore the versioning configuration

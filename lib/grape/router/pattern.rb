@@ -13,7 +13,7 @@ module Grape
       def_delegators :to_regexp, :===
       alias match? ===
 
-      def initialize(pattern, **options)
+      def initialize(pattern, options)
         @origin = pattern
         @path = build_path(pattern, anchor: options[:anchor], suffix: options[:suffix])
         @pattern = build_pattern(@path, options)
@@ -33,7 +33,7 @@ module Grape
           path,
           uri_decode: true,
           params: options[:params],
-          capture: extract_capture(**options)
+          capture: extract_capture(options)
         )
       end
 
@@ -41,7 +41,7 @@ module Grape
         PatternCache[[build_path_from_pattern(pattern, anchor: anchor), suffix]]
       end
 
-      def extract_capture(**options)
+      def extract_capture(options)
         sliced_options = options
                          .slice(:format, :version)
                          .delete_if { |_k, v| v.blank? }
