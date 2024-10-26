@@ -33,8 +33,8 @@ module Grape
       class Validator
         attr_reader :schema
 
-        def initialize(*_args, schema:)
-          @schema = schema
+        def initialize(_attrs, _options, _required, _scope, opts = {})
+          @schema = opts.fetch(:schema)
         end
 
         # Validates a given request.
