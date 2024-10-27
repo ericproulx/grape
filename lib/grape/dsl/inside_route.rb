@@ -26,8 +26,8 @@ module Grape
       # has completed
       module PostBeforeFilter
         def declared(passed_params, options = {}, declared_params = nil, params_nested_path = [])
-          options = options.reverse_merge(include_missing: true, include_parent_namespaces: true, evaluate_given: false)
-          declared_params ||= optioned_declared_params(include_parent_namespaces: options[:include_parent_namespaces])
+          options.reverse_merge!(include_missing: true, include_parent_namespaces: true, evaluate_given: false)
+          declared_params ||= optioned_declared_params(options[:include_parent_namespaces])
 
           res = if passed_params.is_a?(Array)
                   declared_array(passed_params, options, declared_params, params_nested_path)
@@ -35,9 +35,7 @@ module Grape
                   declared_hash(passed_params, options, declared_params, params_nested_path)
                 end
 
-          if (key_maps = namespace_stackable(:contract_key_map))
-            key_maps.each { |key_map| key_map.write(passed_params, res) }
-          end
+          namespace_stackable(:contract_key_map)&.each { |key_map| key_map.write(passed_params, res) }
 
           res
         end
@@ -120,7 +118,7 @@ module Grape
           options[:stringify] ? declared_param.to_s : declared_param.to_sym
         end
 
-        def optioned_declared_params(include_parent_namespaces:)
+        def optioned_declared_params(include_parent_namespaces)
           declared_params = if include_parent_namespaces
                               # Declared params including parent namespaces
                               route_setting(:declared_params)
