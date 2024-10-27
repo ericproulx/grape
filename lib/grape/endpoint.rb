@@ -164,7 +164,7 @@ module Grape
       route_options = prepare_default_route_attributes
       map_routes do |method, path|
         path = prepare_path(path)
-        params = merge_route_options(route_options.merge(suffix: path.suffix))
+        params = options[:route_options].merge(route_options, suffix: path.suffix)
         route = Router::Route.new(method, path.path, params)
         route.apply(self)
       end.flatten
@@ -194,10 +194,6 @@ module Grape
       return if version.blank?
 
       version.length == 1 ? version.first : version
-    end
-
-    def merge_route_options(default)
-      options[:route_options].clone.merge!(default)
     end
 
     def map_routes
