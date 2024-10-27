@@ -7,7 +7,7 @@ module Grape
         def initialize(hash)
           super
           @value_hash = ActiveSupport::HashWithIndifferentAccess.new
-          hash.each do |key, value|
+          hash&.each do |key, value|
             self[key] = value
           end
         end
