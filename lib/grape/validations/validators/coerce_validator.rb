@@ -4,14 +4,12 @@ module Grape
   module Validations
     module Validators
       class CoerceValidator < Base
+        attr_reader :coercer
+
         def initialize(attrs, options, required, scope, opts)
           super
 
-          @converter = if type.is_a?(Grape::Validations::Types::VariantCollectionCoercer)
-                         type
-                       else
-                         Types.build_coercer(type, method: @option[:method])
-                       end
+          @coercer = @option[:coercer]
         end
 
         def validate_param!(attr_name, params)
@@ -37,30 +35,15 @@ module Grape
 
         private
 
-        # @!attribute [r] converter
-        # Object that will be used for parameter coercion and type checking.
-        #
-        # See {Types.build_coercer}
-        #
-        # @return [Object]
-        attr_reader :converter
-
         def valid_type?(val)
           !val.is_a?(Types::InvalidValue)
         end
 
         def coerce_value(val)
-          converter.call(val)
+          coercer.call(val)
           # Some custom types might fail, so it should be treated as an invalid value
         rescue StandardError
           Types::InvalidValue.new
-        end
-
-        # Type to which the parameter will be coerced.
-        #
-        # @return [Class]
-        def type
-          @option[:type].is_a?(Hash) ? @option[:type][:value] : @option[:type]
         end
 
         def validation_exception(attr_name, custom_msg = nil)

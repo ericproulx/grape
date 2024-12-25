@@ -127,11 +127,15 @@ module Grape
     end
 
     def method_name
-      [options[:method],
-       Namespace.joined_space(namespace_stackable(:namespace)),
-       (namespace_stackable(:mount_path) || []).join('/'),
-       options[:path].join('/')]
-        .join(' ')
+      mount_path = namespace_stackable(:mount_path)
+      mount_path = mount_path.join('/') if mount_path.present?
+
+      [
+        options[:method],
+        Namespace.joined_space(namespace_stackable(:namespace)),
+        mount_path,
+        options[:path].join('/')
+      ].join(' ')
     end
 
     def routes

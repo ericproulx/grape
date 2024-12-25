@@ -102,10 +102,17 @@ describe Grape::DSL::Parameters do
 
   describe '#optional' do
     it 'adds an optional parameter' do
-      subject.optional :id, type: Integer, desc: 'Identity.'
+      subject.optional :id, type: Integer, desc: 'Identity.', message: 'my_message'
 
       expect(subject.validate_attributes_reader).to eq([[:id], { type: Integer, desc: 'Identity.' }])
       expect(subject.push_declared_params_reader).to eq([:id])
+    end
+
+    context 'when message attribute is present' do
+      it 'should not be included' do
+        subject.optional :id, type: Integer, desc: 'Identity.', message: 'my_message'
+        expect(subject.validate_attributes_reader).to eq([[:id], { type: Integer, desc: 'Identity.' }])
+      end
     end
   end
 

@@ -129,7 +129,7 @@ module Grape
         orig_attrs = attrs.clone
 
         opts = attrs.extract_options!.clone
-        opts[:presence] = { value: true, message: opts[:message] }
+        opts[:presence] = { value: true, message: opts.delete(:message) }
         opts = @group.deep_merge(opts) if instance_variable_defined?(:@group) && @group
 
         if opts[:using]
@@ -148,6 +148,7 @@ module Grape
         orig_attrs = attrs.clone
 
         opts = attrs.extract_options!.clone
+        opts.delete(:message)
         type = opts[:type]
         opts = @group.deep_merge(opts) if instance_variable_defined?(:@group) && @group
 

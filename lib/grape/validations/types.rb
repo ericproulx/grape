@@ -75,7 +75,7 @@ module Grape
       # @return [Boolean] +true+ if the given value will be treated as
       #   a list of types.
       def multiple?(type)
-        (type.is_a?(Array) || type.is_a?(Set)) && type.size > 1
+        array_or_set?(type) && type.size > 1
       end
 
       # Does Grape provide special coercion and validation
@@ -104,11 +104,7 @@ module Grape
       # @param type [Class] type to check
       # @return [Boolean] whether or not the type can be used as a custom type
       def custom?(type)
-        !primitive?(type) &&
-          !structure?(type) &&
-          !multiple?(type) &&
-          type.respond_to?(:parse) &&
-          type.method(:parse).arity == 1
+        !(primitive?(type) || structure?(type) || multiple?(type)) && type.respond_to?(:parse) && type.method(:parse).arity == 1
       end
 
       # Is the declared type an +Array+ or +Set+ of a {#custom?} type?
@@ -117,9 +113,10 @@ module Grape
       # @return [Boolean] true if +type+ is a collection of a type that implements
       #   its own +#parse+ method.
       def collection_of_custom?(type)
-        (type.is_a?(Array) || type.is_a?(Set)) &&
-          type.length == 1 &&
-          (custom?(type.first) || special?(type.first))
+        return false unless array_or_set?(type) && type.size == 1
+
+        type = type.first
+        custom?(type) || special?(type)
       end
 
       def map_special(type)
@@ -155,59 +152,47 @@ module Grape
       # @return [Object] object to be used
       #   for coercion and type validation
       def build_coercer(type, method: nil, strict: false)
-        cache_instance(type, method, strict) do
-          create_coercer_instance(type, method, strict)
-        end
-      end
-
-      def create_coercer_instance(type, method, strict)
         # Maps a custom type provided by Grape, it doesn't map types wrapped by collections!!!
         type = Types.map_special(type)
+        build_coercer_with_method(type, method) || CoercerCache[[type, strict]]
+      end
 
+      def build_coercer_with_method(type, method)
+        return unless method
+
+        coercer = Types.multiple?(type) ? MultipleTypeCoercer : CustomTypeCoercer
+        coercer.new(type, method)
+      end
+
+      def create_coercer_instance(type, strict)
         # Use a special coercer for multiply-typed parameters.
-        if Types.multiple?(type)
-          MultipleTypeCoercer.new(type, method)
-
+        if multiple?(type)
+          MultipleTypeCoercer.new(type)
           # Use a special coercer for custom types and coercion methods.
-        elsif method || Types.custom?(type)
-          CustomTypeCoercer.new(type, method)
-
+        elsif custom?(type)
+          CustomTypeCoercer.new(type)
           # Special coercer for collections of types that implement a parse method.
           # CustomTypeCoercer (above) already handles such types when an explicit coercion
           # method is supplied.
-        elsif Types.collection_of_custom?(type)
-          Types::CustomTypeCollectionCoercer.new(
-            Types.map_special(type.first), type.is_a?(Set)
-          )
+        elsif collection_of_custom?(type)
+          CustomTypeCollectionCoercer.new(map_special(type.first), type.is_a?(Set))
         else
           DryTypeCoercer.coercer_instance_for(type, strict)
         end
       end
 
-      def cache_instance(type, method, strict, &_block)
-        key = cache_key(type, method, strict)
-
-        return @__cache[key] if @__cache.key?(key)
-
-        instance = yield
-
-        @__cache_write_lock.synchronize do
-          @__cache[key] = instance
-        end
-
-        instance
+      def array_or_set?(type)
+        type.is_a?(Array) || type.is_a?(Set)
       end
 
-      def cache_key(type, method, strict)
-        [type, method, strict].each_with_object(+'_') do |val, memo|
-          next if val.nil?
-
-          memo << '_' << val.to_s
+      class CoercerCache < Grape::Util::Cache
+        def initialize
+          super
+          @cache = Hash.new do |h, (type, script)|
+            h[[type, script]] = Grape::Validations::Types.create_coercer_instance(type, script)
+          end
         end
       end
-
-      instance_variable_set(:@__cache,            {})
-      instance_variable_set(:@__cache_write_lock, Mutex.new)
     end
   end
 end
