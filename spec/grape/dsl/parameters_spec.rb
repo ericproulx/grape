@@ -48,13 +48,6 @@ describe Grape::DSL::Parameters do
         yield
         @group = prev_group
       end
-
-      def extract_message_option(attrs)
-        return nil unless attrs.is_a?(Array)
-
-        opts = attrs.last.is_a?(Hash) ? attrs.pop : {}
-        opts.key?(:message) && !opts[:message].nil? ? opts.delete(:message) : nil
-      end
     end
   end
 
@@ -220,7 +213,7 @@ describe Grape::DSL::Parameters do
     it 'adds an mutally exclusive parameter validation' do
       subject.mutually_exclusive :media, :audio
 
-      expect(subject.validates_reader).to eq([%i[media audio], { mutual_exclusion: { value: true, message: nil } }])
+      expect(subject.validates_reader).to eq([%i[media audio], { mutual_exclusion: { value: true } }])
     end
   end
 
@@ -228,7 +221,7 @@ describe Grape::DSL::Parameters do
     it 'adds an exactly of one parameter validation' do
       subject.exactly_one_of :media, :audio
 
-      expect(subject.validates_reader).to eq([%i[media audio], { exactly_one_of: { value: true, message: nil } }])
+      expect(subject.validates_reader).to eq([%i[media audio], { exactly_one_of: { value: true } }])
     end
   end
 
@@ -236,7 +229,7 @@ describe Grape::DSL::Parameters do
     it 'adds an at least one of parameter validation' do
       subject.at_least_one_of :media, :audio
 
-      expect(subject.validates_reader).to eq([%i[media audio], { at_least_one_of: { value: true, message: nil } }])
+      expect(subject.validates_reader).to eq([%i[media audio], { at_least_one_of: { value: true } }])
     end
   end
 
@@ -244,7 +237,7 @@ describe Grape::DSL::Parameters do
     it 'adds an all or none of parameter validation' do
       subject.all_or_none_of :media, :audio
 
-      expect(subject.validates_reader).to eq([%i[media audio], { all_or_none_of: { value: true, message: nil } }])
+      expect(subject.validates_reader).to eq([%i[media audio], { all_or_none_of: { value: true } }])
     end
   end
 

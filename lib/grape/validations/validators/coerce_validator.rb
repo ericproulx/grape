@@ -7,8 +7,8 @@ module Grape
         def initialize(attrs, options, required, scope, opts)
           super
 
-          @converter = if type.is_a?(Grape::Validations::Types::VariantCollectionCoercer)
-                         type
+          @converter = if @option[:variant_collection]
+                         Types::VariantCollectionCoercer.new(type, @option[:method])
                        else
                          Types.build_coercer(type, method: @option[:method])
                        end
