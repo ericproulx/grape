@@ -453,12 +453,6 @@ module Grape
         option[:value]
       end
 
-      def extract_message_option(option)
-        return unless option.is_a?(Hash)
-
-        option[:message]
-      end
-
       def add_validations_coercion_options(coercer_options, validations)
         if coercer_options.is_a?(Hash)
           options = coercer_options.extract!(:value, :message)
