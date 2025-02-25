@@ -352,12 +352,10 @@ module Grape
       namespace_stackable(:finallies)
     end
 
-    def validations
-      return enum_for(:validations) unless block_given?
+    def validations(&block)
+      return enum_for(:validations) unless block
 
-      route_setting(:saved_validations)&.each do |saved_validation|
-        yield Grape::Validations::ValidatorFactory.create_validator(saved_validation)
-      end
+      route_setting(:saved_validations)&.each(&block)
     end
 
     def options?
