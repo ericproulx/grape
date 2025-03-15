@@ -47,6 +47,8 @@ module Grape
 
       GROUPS = [Array, Hash, JSON, Array[JSON]].freeze
 
+      DISALLOWED_COERCE_TYPES = [JSON, Array[JSON]].freeze
+
       # Is the given class a primitive type as recognized by Grape?
       #
       # @param type [Class] type to check
