@@ -10,7 +10,6 @@ module Grape
       def initialize(api, contract = nil, &block)
         # When block is passed, the first arg is either schema or nil.
         contract = Dry::Schema.Params(parent: contract, &block) if block
-
         if contract.respond_to?(:schema)
           # It's a Dry::Validation::Contract, then.
           contract = contract.new
@@ -21,13 +20,7 @@ module Grape
         end
 
         api.namespace_stackable(:contract_key_map, key_map)
-
-        validator_options = {
-          validator_class: Grape::Validations.require_validator(:contract_scope),
-          opts: { schema: contract, fail_fast: false }
-        }
-
-        api.namespace_stackable(:validations, validator_options)
+        api.namespace_stackable(:validations, Validators::ContractScopeValidator.new(nil, nil, nil, nil, schema: contract, fail_fast: false))
       end
     end
   end
