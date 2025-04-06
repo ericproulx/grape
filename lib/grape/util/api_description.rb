@@ -3,7 +3,13 @@
 module Grape
   module Util
     class ApiDescription
-      ATTRIBUTES = %i[
+      def initialize(description, endpoint_configuration, &block)
+        @endpoint_configuration = endpoint_configuration
+        @attributes = { description: description }
+        instance_eval(&block)
+      end
+
+      %i[
         body_name
         consumes
         default
@@ -21,15 +27,7 @@ module Grape
         security
         summary
         tags
-      ].freeze
-
-      def initialize(description, endpoint_configuration, &block)
-        @endpoint_configuration = endpoint_configuration
-        @attributes = { description: description }
-        instance_eval(&block)
-      end
-
-      ATTRIBUTES.each do |attribute|
+      ].each do |attribute|
         define_method attribute do |value|
           @attributes[attribute] = value
         end
