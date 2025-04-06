@@ -46,7 +46,7 @@ describe Grape::Endpoint do
     context 'when params are not built with default class' do
       it 'returns an object that corresponds with the params class - hash with indifferent access' do
         subject.params do
-          build_with Grape::Extensions::ActiveSupport::HashWithIndifferentAccess::ParamBuilder
+          build_with :hash_with_indifferent_access
         end
         subject.get '/declared' do
           d = declared(params, include_missing: true)
@@ -59,7 +59,7 @@ describe Grape::Endpoint do
 
       it 'returns an object that corresponds with the params class - hash' do
         subject.params do
-          build_with Grape::Extensions::Hash::ParamBuilder
+          build_with :hash
         end
         subject.get '/declared' do
           d = declared(params, include_missing: true)
@@ -855,5 +855,27 @@ describe Grape::Endpoint do
           match('a' => { 'b' => { 'output_field' => 'value' }, 'c' => 'value2' })
       end
     end
+  end
+
+  describe 'optional_array' do
+    subject { last_response }
+
+    let(:app) do
+      Class.new(Grape::API) do
+        params do
+          requires :z, type: Array do
+            optional :a, type: Integer
+          end
+        end
+
+        post do
+          declared(params, include_missing: false)
+        end
+      end
+    end
+
+    before { post '/', { z: [] } }
+
+    it { is_expected.to be_successful }
   end
 end

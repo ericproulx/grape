@@ -1525,6 +1525,34 @@ describe Grape::API do
         expect(last_response).to be_bad_request
         expect(last_response.body).to eq('Caught in the Net')
       end
+
+      context 'when middleware initialize as keywords' do
+        let(:middleware_with_keywords) do
+          Class.new do
+            def initialize(app, keyword:)
+              @app = app
+              @keyword = keyword
+            end
+
+            def call(env)
+              env['middleware_with_keywords'] = @keyword
+              @app.call(env)
+            end
+          end
+        end
+
+        before do
+          subject.use middleware_with_keywords, keyword: 'hello'
+          subject.get '/' do
+            env['middleware_with_keywords']
+          end
+          get '/'
+        end
+
+        it 'returns the middleware value' do
+          expect(last_response.body).to eq('hello')
+        end
+      end
     end
 
     describe '.insert_before' do
@@ -1698,11 +1726,6 @@ describe Grape::API do
         subject.logger.info message
         expect(subject.io.string).to include(message)
       end
-    end
-
-    it 'does not unnecessarily retain duplicate setup blocks' do
-      subject.logger
-      expect { subject.logger }.not_to change(subject.instance_variable_get(:@setup), :size)
     end
   end
 
@@ -4693,5 +4716,26 @@ describe Grape::API do
     before { get '/' }
 
     it { is_expected.to be_bad_request }
+  end
+
+  describe '.build_with' do
+    let(:app) do
+      Class.new(described_class) do
+        build_with :unknown
+        params do
+          requires :a_param, type: Integer
+        end
+        get
+      end
+    end
+
+    before do
+      get '/'
+    end
+
+    it 'raises an UnknownParamsBuilder error' do
+      expect(last_response).to be_server_error
+      expect(last_response.body).to eq('unknown params_builder: unknown')
+    end
   end
 end

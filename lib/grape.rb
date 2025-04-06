@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require 'logger'
 require 'active_support'
 require 'active_support/concern'
 require 'active_support/configurable'
@@ -19,6 +20,7 @@ require 'active_support/core_ext/hash/slice'
 require 'active_support/core_ext/module/delegation'
 require 'active_support/core_ext/object/blank'
 require 'active_support/core_ext/object/deep_dup'
+require 'active_support/core_ext/object/try'
 require 'active_support/core_ext/object/duplicable'
 require 'active_support/core_ext/string/output_safety'
 require 'active_support/core_ext/string/exclude'
@@ -33,7 +35,6 @@ require 'date'
 require 'dry-types'
 require 'forwardable'
 require 'json'
-require 'logger'
 require 'mustermann/grape'
 require 'pathname'
 require 'rack'
@@ -63,7 +64,7 @@ module Grape
   end
 
   configure do |config|
-    config.param_builder = Grape::Extensions::ActiveSupport::HashWithIndifferentAccess::ParamBuilder
+    config.param_builder = :hash_with_indifferent_access
     config.compile_methods!
   end
 end

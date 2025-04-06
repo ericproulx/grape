@@ -6,11 +6,15 @@ module Grape
   # on the instance level of this class may be called
   # from inside a `get`, `post`, etc.
   class Endpoint
+    extend Forwardable
     include Grape::DSL::Settings
     include Grape::DSL::InsideRoute
 
     attr_accessor :block, :source, :options
-    attr_reader :env, :request, :headers, :params
+    attr_reader :env, :request
+
+    def_delegators :request, :params, :headers, :cookies
+    def_delegator :cookies, :response_cookies
 
     class << self
       def new(...)
@@ -30,7 +34,7 @@ module Grape
 
       def run_before_each(endpoint)
         superclass.run_before_each(endpoint) unless self == Endpoint
-        before_each.each { |blk| blk.call(endpoint) if blk.respond_to?(:call) }
+        before_each.each { |blk| blk.try(:call, endpoint) }
       end
 
       # @api private
@@ -135,7 +139,7 @@ module Grape
     end
 
     def routes
-      @routes ||= endpoints ? endpoints.collect(&:routes).flatten : to_routes
+      @routes ||= endpoints&.collect(&:routes)&.flatten || to_routes
     end
 
     def reset_routes!
@@ -161,10 +165,9 @@ module Grape
 
     def to_routes
       default_route_options = prepare_default_route_attributes
-      default_path_settings = prepare_default_path_settings
 
       map_routes do |method, raw_path|
-        prepared_path = Path.new(raw_path, namespace, default_path_settings)
+        prepared_path = Path.new(raw_path, namespace, prepare_default_path_settings)
         params = options[:route_options].present? ? options[:route_options].merge(default_route_options) : default_route_options
         route = Grape::Router::Route.new(method, prepared_path.origin, prepared_path.suffix, params)
         route.apply(self)
@@ -225,7 +228,7 @@ module Grape
     # Return the collection of endpoints within this endpoint.
     # This is the case when an Grape::API mounts another Grape::API.
     def endpoints
-      options[:app].endpoints if options[:app].respond_to?(:endpoints)
+      @endpoints ||= options[:app].try(:endpoints)
     end
 
     def equals?(endpoint)
@@ -245,20 +248,16 @@ module Grape
 
     def run
       ActiveSupport::Notifications.instrument('endpoint_run.grape', endpoint: self, env: env) do
-        @header = Grape::Util::Header.new
         @request = Grape::Request.new(env, build_params_with: namespace_inheritable(:build_params_with))
-        @params = @request.params
-        @headers = @request.headers
         begin
-          cookies.read(@request)
           self.class.run_before_each(self)
           run_filters befores, :before
 
-          if (allowed_methods = env[Grape::Env::GRAPE_ALLOWED_METHODS])
-            allow_header_value = allowed_methods.join(', ')
-            raise Grape::Exceptions::MethodNotAllowed.new(header.merge('Allow' => allow_header_value)) unless options?
+          if env.key?(Grape::Env::GRAPE_ALLOWED_METHODS)
+            header['Allow'] = env[Grape::Env::GRAPE_ALLOWED_METHODS].join(', ')
+            raise Grape::Exceptions::MethodNotAllowed.new(header) unless options?
 
-            header Grape::Http::Headers::ALLOW, allow_header_value
+            header Grape::Http::Headers::ALLOW, header['Allow']
             response_object = ''
             status 204
           else
@@ -269,7 +268,7 @@ module Grape
           end
 
           run_filters afters, :after
-          cookies.write(header)
+          build_response_cookies
 
           # status verifies body presence when DELETE
           @body ||= response_object
@@ -331,24 +330,10 @@ module Grape
       extend post_extension if post_extension
     end
 
-    def befores
-      namespace_stackable(:befores)
-    end
-
-    def before_validations
-      namespace_stackable(:before_validations)
-    end
-
-    def after_validations
-      namespace_stackable(:after_validations)
-    end
-
-    def afters
-      namespace_stackable(:afters)
-    end
-
-    def finallies
-      namespace_stackable(:finallies)
+    %i[befores before_validations after_validations afters finallies].each do |method|
+      define_method method do
+        namespace_stackable(method)
+      end
     end
 
     def validations(&block)
@@ -413,6 +398,13 @@ module Grape
       return if helpers.empty?
 
       Module.new { helpers.each { |mod_to_include| include mod_to_include } }
+    end
+
+    def build_response_cookies
+      response_cookies do |name, value|
+        cookie_value = value.is_a?(Hash) ? value : { value: value }
+        Rack::Utils.set_cookie_header! header, name, cookie_value
+      end
     end
   end
 end

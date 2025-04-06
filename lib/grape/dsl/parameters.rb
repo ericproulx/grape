@@ -23,14 +23,14 @@ module Grape
       #     class API < Grape::API
       #       desc "Get collection"
       #       params do
-      #         build_with Grape::Extensions::Hashie::Mash::ParamBuilder
+      #         build_with :hashie_mash
       #         requires :user_id, type: Integer
       #       end
       #       get do
       #         params['user_id']
       #       end
       #     end
-      def build_with(build_with = nil)
+      def build_with(build_with)
         @api.namespace_inheritable(:build_params_with, build_with)
       end
 
@@ -251,7 +251,7 @@ module Grape
       # @return hash of parameters relevant for the current scope
       # @api private
       def params(params)
-        params = @parent.params(params) if instance_variable_defined?(:@parent) && @parent
+        params = @parent.params_meeting_dependency.presence || @parent.params(params) if instance_variable_defined?(:@parent) && @parent
         params = map_params(params, @element) if instance_variable_defined?(:@element) && @element
         params
       end

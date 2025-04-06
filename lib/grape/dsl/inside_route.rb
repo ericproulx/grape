@@ -79,7 +79,7 @@ module Grape
           else
             # If it is not a Hash then it does not have children.
             # Find its value or set it to nil.
-            return unless options[:include_missing] || passed_params.key?(declared_param)
+            return unless options[:include_missing] || passed_params.try(:key?, declared_param)
 
             rename_path = params_nested_path + [declared_param.to_s]
             renamed_param_name = renamed_params[rename_path]
@@ -107,7 +107,7 @@ module Grape
 
           if type == 'Hash' && !has_children
             {}
-          elsif type == 'Array' || (type&.start_with?('[') && type&.exclude?(','))
+          elsif type == 'Array' || (type&.start_with?('[') && type.exclude?(','))
             []
           elsif type == 'Set' || type&.start_with?('#<Set')
             Set.new
@@ -255,18 +255,6 @@ module Grape
         else
           header[Rack::CONTENT_TYPE]
         end
-      end
-
-      # Set or get a cookie
-      #
-      # @example
-      #   cookies[:mycookie] = 'mycookie val'
-      #   cookies['mycookie-string'] = 'mycookie string val'
-      #   cookies[:more] = { value: '123', expires: Time.at(0) }
-      #   cookies.delete :more
-      #
-      def cookies
-        @cookies ||= Cookies.new
       end
 
       # Allows you to define the response body as something other than the
@@ -447,7 +435,7 @@ module Grape
       def entity_representation_for(entity_class, object, options)
         embeds = { env: env }
         embeds[:version] = env[Grape::Env::API_VERSION] if env.key?(Grape::Env::API_VERSION)
-        entity_class.represent(object, **embeds.merge(options))
+        entity_class.represent(object, **embeds, **options)
       end
 
       def http_version
