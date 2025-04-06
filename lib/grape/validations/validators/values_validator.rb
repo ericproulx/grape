@@ -4,7 +4,7 @@ module Grape
   module Validations
     module Validators
       class ValuesValidator < Base
-        def initialize(attrs, options, required, scope, **opts)
+        def initialize(attrs, options, required, scope, opts)
           @values = options.is_a?(Hash) ? options[:value] : options
           super
         end
@@ -15,6 +15,8 @@ module Grape
           val = params[attr_name]
 
           return if val.nil? && !required_for_root_scope?
+
+          val = val.scrub if val.respond_to?(:scrub)
 
           # don't forget that +false.blank?+ is true
           return if val != false && val.blank? && @allow_blank

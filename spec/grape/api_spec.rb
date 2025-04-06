@@ -1525,6 +1525,34 @@ describe Grape::API do
         expect(last_response).to be_bad_request
         expect(last_response.body).to eq('Caught in the Net')
       end
+
+      context 'when middleware initialize as keywords' do
+        let(:middleware_with_keywords) do
+          Class.new do
+            def initialize(app, keyword:)
+              @app = app
+              @keyword = keyword
+            end
+
+            def call(env)
+              env['middleware_with_keywords'] = @keyword
+              @app.call(env)
+            end
+          end
+        end
+
+        before do
+          subject.use middleware_with_keywords, keyword: 'hello'
+          subject.get '/' do
+            env['middleware_with_keywords']
+          end
+          get '/'
+        end
+
+        it 'returns the middleware value' do
+          expect(last_response.body).to eq('hello')
+        end
+      end
     end
 
     describe '.insert_before' do
@@ -1698,11 +1726,6 @@ describe Grape::API do
         subject.logger.info message
         expect(subject.io.string).to include(message)
       end
-    end
-
-    it 'does not unnecessarily retain duplicate setup blocks' do
-      subject.logger
-      expect { subject.logger }.not_to change(subject.instance_variable_get(:@setup), :size)
     end
   end
 
@@ -2970,9 +2993,10 @@ describe Grape::API do
           subject.put :yaml do
             params[:tag]
           end
-          put '/yaml', '<tag type="symbol">a123</tag>', 'CONTENT_TYPE' => 'application/xml'
+          body = '<tag type="symbol">a123</tag>'
+          put '/yaml', body, 'CONTENT_TYPE' => 'application/xml'
           expect(last_response).to be_successful
-          expect(last_response.body).to eql '{"type"=>"symbol", "__content__"=>"a123"}'
+          expect(last_response.body).to eq(Grape::Xml.parse(body)['tag'].to_s)
         end
       end
     end
@@ -4092,9 +4116,9 @@ describe Grape::API do
         expect(last_response.body).to eq({ meaning_of_life: 42 }.to_json)
       end
 
-      it 'can be overwritten with an explicit content type' do
+      it 'can be overwritten with an explicit api_format' do
         subject.get '/meaning_of_life_with_content_type' do
-          content_type 'text/plain'
+          api_format :txt
           { meaning_of_life: 42 }.to_s
         end
         get '/meaning_of_life_with_content_type'
@@ -4692,5 +4716,26 @@ describe Grape::API do
     before { get '/' }
 
     it { is_expected.to be_bad_request }
+  end
+
+  describe '.build_with' do
+    let(:app) do
+      Class.new(described_class) do
+        build_with :unknown
+        params do
+          requires :a_param, type: Integer
+        end
+        get
+      end
+    end
+
+    before do
+      get '/'
+    end
+
+    it 'raises an UnknownParamsBuilder error' do
+      expect(last_response).to be_server_error
+      expect(last_response.body).to eq('unknown params_builder: unknown')
+    end
   end
 end

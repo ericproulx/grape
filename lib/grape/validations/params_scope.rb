@@ -4,7 +4,7 @@ module Grape
   module Validations
     class ParamsScope
       attr_accessor :element, :parent, :index
-      attr_reader :type
+      attr_reader :type, :params_meeting_dependency
 
       include Grape::DSL::Parameters
 
@@ -67,6 +67,7 @@ module Grape
         @type             = opts[:type]
         @group            = opts[:group]
         @dependent_on     = opts[:dependent_on]
+        @params_meeting_dependency = []
         @declared_params = []
         @index = nil
 
@@ -94,7 +95,11 @@ module Grape
       def meets_dependency?(params, request_params)
         return true unless @dependent_on
         return false if @parent.present? && !@parent.meets_dependency?(@parent.params(request_params), request_params)
-        return params.any? { |param| meets_dependency?(param, request_params) } if params.is_a?(Array)
+
+        if params.is_a?(Array)
+          @params_meeting_dependency = params.flatten.filter { |param| meets_dependency?(param, request_params) }
+          return @params_meeting_dependency.present?
+        end
 
         meets_hash_dependency?(params)
       end
@@ -127,7 +132,7 @@ module Grape
       def full_name(name, index: nil)
         if nested?
           # Find our containing element's name, and append ours.
-          "#{@parent.full_name(@element)}#{brackets(@index || index)}#{brackets(name)}"
+          "#{@parent.full_name(@element)}#{brackets(index || @index)}#{brackets(name)}"
         elsif lateral?
           # Find the name of the element as if it was at the same nesting level
           # as our parent. We need to forward our index upward to achieve this.
@@ -174,16 +179,12 @@ module Grape
 
       # Adds a parameter declaration to our list of validations.
       # @param attrs [Array] (see Grape::DSL::Parameters#requires)
-      def push_declared_params(attrs, **opts)
-        opts = opts.merge(declared_params_scope: self) unless opts.key?(:declared_params_scope)
-        if lateral?
-          @parent.push_declared_params(attrs, **opts)
-        else
-          push_renamed_param(full_path + [attrs.first], opts[:as]) \
-            if opts && opts[:as]
+      def push_declared_params(attrs, opts = {})
+        opts[:declared_params_scope] = self unless opts.key?(:declared_params_scope)
+        return @parent.push_declared_params(attrs, opts) if lateral?
 
-          @declared_params.concat(attrs.map { |attr| ::Grape::Validations::ParamsScope::Attr.new(attr, opts[:declared_params_scope]) })
-        end
+        push_renamed_param(full_path + [attrs.first], opts[:as]) if opts[:as]
+        @declared_params.concat(attrs.map { |attr| ::Grape::Validations::ParamsScope::Attr.new(attr, opts[:declared_params_scope]) })
       end
 
       # Get the full path of the parameter scope in the hierarchy.
@@ -490,7 +491,7 @@ module Grape
       def validate_value_coercion(coerce_type, *values_list)
         return unless coerce_type
 
-        coerce_type = coerce_type.first if coerce_type.is_a?(Array)
+        coerce_type = coerce_type.first if coerce_type.is_a?(Enumerable)
         values_list.each do |values|
           next if !values || values.is_a?(Proc)
 
@@ -529,7 +530,7 @@ module Grape
       def validates_presence(validations, attrs, doc, opts)
         return unless validations.key?(:presence) && validations[:presence]
 
-        validate(:presence, validations.delete(:presence), attrs, doc, opts)
+        validate('presence', validations.delete(:presence), attrs, doc, opts)
         validations.delete(:message) if validations.key?(:message)
       end
     end

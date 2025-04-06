@@ -23,14 +23,14 @@ module Grape
       #     class API < Grape::API
       #       desc "Get collection"
       #       params do
-      #         build_with Grape::Extensions::Hashie::Mash::ParamBuilder
+      #         build_with :hashie_mash
       #         requires :user_id, type: Integer
       #       end
       #       get do
       #         params['user_id']
       #       end
       #     end
-      def build_with(build_with = nil)
+      def build_with(build_with)
         @api.namespace_inheritable(:build_params_with, build_with)
       end
 
@@ -136,7 +136,7 @@ module Grape
           require_required_and_optional_fields(attrs.first, opts)
         else
           validate_attributes(attrs, opts, &block)
-          block ? new_scope(orig_attrs, &block) : push_declared_params(attrs, **opts.slice(:as))
+          block ? new_scope(orig_attrs, &block) : push_declared_params(attrs, opts.slice(:as))
         end
       end
 
@@ -162,7 +162,7 @@ module Grape
         else
           validate_attributes(attrs, opts, &block)
 
-          block ? new_scope(orig_attrs, true, &block) : push_declared_params(attrs, **opts.slice(:as))
+          block ? new_scope(orig_attrs, true, &block) : push_declared_params(attrs, opts.slice(:as))
         end
       end
 
@@ -251,7 +251,7 @@ module Grape
       # @return hash of parameters relevant for the current scope
       # @api private
       def params(params)
-        params = @parent.params(params) if instance_variable_defined?(:@parent) && @parent
+        params = @parent.params_meeting_dependency.presence || @parent.params(params) if instance_variable_defined?(:@parent) && @parent
         params = map_params(params, @element) if instance_variable_defined?(:@element) && @element
         params
       end

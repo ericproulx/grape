@@ -13,15 +13,14 @@ module Grape
         # @param options [Object] implementation-dependent Validator options
         # @param required [Boolean] attribute(s) are required or optional
         # @param scope [ParamsScope] parent scope for this Validator
-        # @param opts [Array] additional validation options
-        def initialize(attrs, options, required, scope, *opts)
+        # @param opts [Hash] additional validation options
+        def initialize(attrs, options, required, scope, opts)
           @attrs = Array(attrs)
           @option = options
           @required = required
           @scope = scope
-          opts = opts.any? ? opts.shift : {}
-          @fail_fast = opts.fetch(:fail_fast, false)
-          @allow_blank = opts.fetch(:allow_blank, false)
+          @fail_fast = opts[:fail_fast]
+          @allow_blank = opts[:allow_blank]
         end
 
         # Validates a given request.
@@ -50,7 +49,7 @@ module Grape
             next if !@scope.required? && empty_val
             next unless @scope.meets_dependency?(val, params)
 
-            validate_param!(attr_name, val) if @required || (val.respond_to?(:key?) && val.key?(attr_name))
+            validate_param!(attr_name, val) if @required || val.try(:key?, attr_name)
           rescue Grape::Exceptions::Validation => e
             array_errors << e
           end
@@ -60,10 +59,7 @@ module Grape
 
         def self.inherited(klass)
           super
-          return if klass.name.blank?
-
-          short_validator_name = klass.name.demodulize.underscore.delete_suffix('_validator')
-          Validations.register_validator(short_validator_name, klass)
+          Validations.register(klass)
         end
 
         def message(default_key = nil)
@@ -73,7 +69,7 @@ module Grape
 
         def options_key?(key, options = nil)
           options = instance_variable_get(:@option) if options.nil?
-          options.respond_to?(:key?) && options.key?(key) && !options[key].nil?
+          options.try(:key?, key) && !options[key].nil?
         end
 
         def fail_fast?

@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-describe Grape::Endpoint do
+describe Grape::DSL::InsideRoute do
   subject { dummy_class.new }
 
   let(:dummy_class) do
@@ -162,12 +162,6 @@ describe Grape::Endpoint do
 
     it 'returns default' do
       expect(subject.content_type).to be_nil
-    end
-  end
-
-  describe '#cookies' do
-    it 'returns an instance of Cookies' do
-      expect(subject.cookies).to be_a Grape::Cookies
     end
   end
 

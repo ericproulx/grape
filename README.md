@@ -1,11 +1,8 @@
 ![grape logo](grape.png)
 
 [![Gem Version](https://badge.fury.io/rb/grape.svg)](http://badge.fury.io/rb/grape)
-[![Build Status](https://github.com/ruby-grape/grape/workflows/test/badge.svg?branch=master)](https://github.com/ruby-grape/grape/actions)
-[![Code Climate](https://codeclimate.com/github/ruby-grape/grape.svg)](https://codeclimate.com/github/ruby-grape/grape)
+[![test](https://github.com/ruby-grape/grape/actions/workflows/test.yml/badge.svg)](https://github.com/ruby-grape/grape/actions/workflows/test.yml)
 [![Coverage Status](https://coveralls.io/repos/github/ruby-grape/grape/badge.svg?branch=master)](https://coveralls.io/github/ruby-grape/grape?branch=master)
-[![Inline docs](https://inch-ci.org/github/ruby-grape/grape.svg)](https://inch-ci.org/github/ruby-grape/grape)
-[![Join the chat at https://gitter.im/ruby-grape/grape](https://badges.gitter.im/ruby-grape/grape.svg)](https://gitter.im/ruby-grape/grape?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 ## Table of Contents
 
@@ -157,14 +154,14 @@ Grape is a REST-like API framework for Ruby. It's designed to run on Rack or com
 
 ## Stable Release
 
-You're reading the documentation for the next release of Grape, which should be 2.3.0.
-The current stable release is [2.2.0](https://github.com/ruby-grape/grape/blob/v2.2.0/README.md).
+You're reading the documentation for the next release of Grape, which should be 2.4.0.
+The current stable release is [2.3.0](https://github.com/ruby-grape/grape/blob/v2.3.0/README.md).
 
 ## Project Resources
 
 * [Grape Website](http://www.ruby-grape.org)
 * [Documentation](http://www.rubydoc.info/gems/grape)
-* Need help? Try [Grape Google Group](http://groups.google.com/group/ruby-grape) or [Gitter](https://gitter.im/ruby-grape/grape)
+* Need help? [Open an Issue](https://github.com/ruby-grape/grape/issues)
 * [Follow us on Twitter](https://twitter.com/grapeframework)
 
 ## Grape for Enterprise
@@ -719,9 +716,12 @@ For example, for the `param_builder`, the following code could run in an initial
 
 ```ruby
 Grape.configure do |config|
-  config.param_builder = Grape::Extensions::Hashie::Mash::ParamBuilder
+  config.param_builder = :hashie_mash
 end
 ```
+
+Available parameter builders are `:hash`, `:hash_with_indifferent_access`, and `:hashie_mash`.
+See [params_builder](lib/grape/params_builder).
 
 You can also configure a single API:
 
@@ -789,7 +789,7 @@ By default parameters are available as `ActiveSupport::HashWithIndifferentAccess
 
 ```ruby
 class API < Grape::API
-  include Grape::Extensions::Hashie::Mash::ParamBuilder
+  build_with :hashie_mash
 
   params do
     optional :color, type: String
@@ -803,16 +803,15 @@ The class can also be overridden on individual parameter blocks using `build_wit
 
 ```ruby
 params do
-  build_with Grape::Extensions::Hash::ParamBuilder
+  build_with :hash
   optional :color, type: String
 end
 ```
 
-Or globally with the [Configuration](#configuration) `Grape.configure.param_builder`.
-
 In the example above, `params["color"]` will return `nil` since `params` is a plain `Hash`.
 
-Available parameter builders are `Grape::Extensions::Hash::ParamBuilder`, `Grape::Extensions::ActiveSupport::HashWithIndifferentAccess::ParamBuilder` and `Grape::Extensions::Hashie::Mash::ParamBuilder`.
+Available parameter builders are `:hash`, `:hash_with_indifferent_access`, and `:hashie_mash`.
+See [params_builder](lib/grape/params_builder).
 
 ### Declared
 
@@ -2046,7 +2045,7 @@ end
 ```ruby
 params do
   requires :code, type: String, length: { is: 2, message: 'code is expected to be exactly 2 characters long' }
-  requires :str, type: String, length: { min: 5, message: 'str is expected to be atleast 5 characters long' }
+  requires :str, type: String, length: { min: 5, message: 'str is expected to be at least 5 characters long' }
   requires :list, type: [Integer], length: { min: 2, max: 3, message: 'list is expected to have between 2 and 3 elements' }
 end
 ```
@@ -3066,7 +3065,7 @@ end
 * `GET /hello.xls` with an `Accept: application/xml` header has an unrecognized extension, but the `Accept` header corresponds to a recognized format, so it will respond with XML.
 * `GET /hello.xls` with an `Accept: text/plain` header has an unrecognized extension *and* an unrecognized `Accept` header, so it will respond with JSON (the default format).
 
-You can override this process explicitly by specifying `env['api.format']` in the API itself.
+You can override this process explicitly by calling `api_format` in the API itself.
 For example, the following API will let you upload arbitrary files and return their contents as an attachment with the correct MIME type.
 
 ```ruby
@@ -3074,7 +3073,7 @@ class Twitter::API < Grape::API
   post 'attachment' do
     filename = params[:file][:filename]
     content_type MIME::Types.type_for(filename)[0].to_s
-    env['api.format'] = :binary # there's no formatter for :binary, data will be returned "as is"
+    api_format :binary # there's no formatter for :binary, data will be returned "as is"
     header 'Content-Disposition', "attachment; filename*=UTF-8''#{CGI.escape(filename)}"
     params[:file][:tempfile].read
   end
@@ -3536,8 +3535,8 @@ Please use `Route#xyz` instead.
 
 Note that difference of `Route#options` and `Route#settings`.
 
-The `options` can be referred from your route, it should be set by specifing key and value on verb methods such as `get`, `post` and `put`.
-The `settings` can also be referred from your route, but it should be set by specifing key and value on `route_setting`.
+The `options` can be referred from your route, it should be set by specifying key and value on verb methods such as `get`, `post` and `put`.
+The `settings` can also be referred from your route, but it should be set by specifying key and value on `route_setting`.
 
 ## Current Route and Endpoint
 

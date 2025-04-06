@@ -23,48 +23,11 @@ module Grape
         api.namespace_stackable(:contract_key_map, key_map)
 
         validator_options = {
-          validator_class: Validator,
-          opts: { schema: contract }
+          validator_class: Grape::Validations.require_validator(:contract_scope),
+          opts: { schema: contract, fail_fast: false }
         }
 
         api.namespace_stackable(:validations, validator_options)
-      end
-
-      class Validator
-        attr_reader :schema
-
-        def initialize(*_args, schema:)
-          @schema = schema
-        end
-
-        # Validates a given request.
-        # @param request [Grape::Request] the request currently being handled
-        # @raise [Grape::Exceptions::ValidationArrayErrors] if validation failed
-        # @return [void]
-        def validate(request)
-          res = schema.call(request.params)
-
-          if res.success?
-            request.params.deep_merge!(res.to_h)
-            return
-          end
-
-          errors = []
-
-          res.errors.messages.each do |message|
-            full_name = message.path.first.to_s
-
-            full_name += "[#{message.path[1..].join('][')}]" if message.path.size > 1
-
-            errors << Grape::Exceptions::Validation.new(params: [full_name], message: message.text)
-          end
-
-          raise Grape::Exceptions::ValidationArrayErrors.new(errors)
-        end
-
-        def fail_fast?
-          false
-        end
       end
     end
   end

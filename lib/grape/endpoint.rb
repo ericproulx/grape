@@ -6,11 +6,15 @@ module Grape
   # on the instance level of this class may be called
   # from inside a `get`, `post`, etc.
   class Endpoint
+    extend Forwardable
     include Grape::DSL::Settings
     include Grape::DSL::InsideRoute
 
     attr_accessor :block, :source, :options
-    attr_reader :env, :request, :headers, :params
+    attr_reader :env, :request
+
+    def_delegators :request, :params, :headers, :cookies
+    def_delegator :cookies, :response_cookies
 
     class << self
       def new(...)
@@ -30,7 +34,7 @@ module Grape
 
       def run_before_each(endpoint)
         superclass.run_before_each(endpoint) unless self == Endpoint
-        before_each.each { |blk| blk.call(endpoint) if blk.respond_to?(:call) }
+        before_each.each { |blk| blk.try(:call, endpoint) }
       end
 
       # @api private
@@ -135,7 +139,7 @@ module Grape
     end
 
     def routes
-      @routes ||= endpoints ? endpoints.collect(&:routes).flatten : to_routes
+      @routes ||= endpoints&.collect(&:routes)&.flatten || to_routes
     end
 
     def reset_routes!
@@ -145,27 +149,27 @@ module Grape
     end
 
     def mount_in(router)
-      if endpoints
-        endpoints.each { |e| e.mount_in(router) }
-      else
-        reset_routes!
-        routes.each do |route|
-          methods = [route.request_method]
-          methods << Rack::HEAD if !namespace_inheritable(:do_not_route_head) && route.request_method == Rack::GET
-          methods.each do |method|
-            route = Grape::Router::Route.new(method, route.origin, **route.attributes.to_h) unless route.request_method == method
-            router.append(route.apply(self))
-          end
+      return endpoints.each { |e| e.mount_in(router) } if endpoints
+
+      reset_routes!
+      routes.each do |route|
+        router.append(route.apply(self))
+        next unless !namespace_inheritable(:do_not_route_head) && route.request_method == Rack::GET
+
+        route.dup.then do |head_route|
+          head_route.convert_to_head_request!
+          router.append(head_route.apply(self))
         end
       end
     end
 
     def to_routes
-      route_options = prepare_default_route_attributes
-      map_routes do |method, path|
-        path = prepare_path(path)
-        params = merge_route_options(**route_options.merge(suffix: path.suffix))
-        route = Router::Route.new(method, path.path, **params)
+      default_route_options = prepare_default_route_attributes
+
+      map_routes do |method, raw_path|
+        prepared_path = Path.new(raw_path, namespace, prepare_default_path_settings)
+        params = options[:route_options].present? ? options[:route_options].merge(default_route_options) : default_route_options
+        route = Grape::Router::Route.new(method, prepared_path.origin, prepared_path.suffix, params)
         route.apply(self)
       end.flatten
     end
@@ -196,19 +200,14 @@ module Grape
       version.length == 1 ? version.first : version
     end
 
-    def merge_route_options(**default)
-      options[:route_options].clone.merge!(**default)
-    end
-
     def map_routes
       options[:method].map { |method| options[:path].map { |path| yield method, path } }
     end
 
-    def prepare_path(path)
+    def prepare_default_path_settings
       namespace_stackable_hash = inheritable_setting.namespace_stackable.to_hash
       namespace_inheritable_hash = inheritable_setting.namespace_inheritable.to_hash
-      path_settings = namespace_stackable_hash.merge!(namespace_inheritable_hash)
-      Path.new(path, namespace, path_settings)
+      namespace_stackable_hash.merge!(namespace_inheritable_hash)
     end
 
     def namespace
@@ -229,7 +228,7 @@ module Grape
     # Return the collection of endpoints within this endpoint.
     # This is the case when an Grape::API mounts another Grape::API.
     def endpoints
-      options[:app].endpoints if options[:app].respond_to?(:endpoints)
+      @endpoints ||= options[:app].try(:endpoints)
     end
 
     def equals?(endpoint)
@@ -249,19 +248,16 @@ module Grape
 
     def run
       ActiveSupport::Notifications.instrument('endpoint_run.grape', endpoint: self, env: env) do
-        @header = Grape::Util::Header.new
         @request = Grape::Request.new(env, build_params_with: namespace_inheritable(:build_params_with))
-        @params = @request.params
-        @headers = @request.headers
         begin
-          cookies.read(@request)
           self.class.run_before_each(self)
           run_filters befores, :before
 
-          if (allowed_methods = env[Grape::Env::GRAPE_ALLOWED_METHODS])
-            raise Grape::Exceptions::MethodNotAllowed.new(header.merge('Allow' => allowed_methods)) unless options?
+          if env.key?(Grape::Env::GRAPE_ALLOWED_METHODS)
+            header['Allow'] = env[Grape::Env::GRAPE_ALLOWED_METHODS].join(', ')
+            raise Grape::Exceptions::MethodNotAllowed.new(header) unless options?
 
-            header Grape::Http::Headers::ALLOW, allowed_methods
+            header Grape::Http::Headers::ALLOW, header['Allow']
             response_object = ''
             status 204
           else
@@ -272,7 +268,7 @@ module Grape
           end
 
           run_filters afters, :after
-          cookies.write(header)
+          build_response_cookies
 
           # status verifies body presence when DELETE
           @body ||= response_object
@@ -286,6 +282,74 @@ module Grape
         end
       end
     end
+
+    def execute
+      @block&.call(self)
+    end
+
+    def helpers
+      lazy_initialize! && @helpers
+    end
+
+    def lazy_initialize!
+      return true if @lazy_initialized
+
+      @lazy_initialize_lock.synchronize do
+        return true if @lazy_initialized
+
+        @helpers = build_helpers&.tap { |mod| self.class.include mod }
+        @app = options[:app] || build_stack(@helpers)
+
+        @lazy_initialized = true
+      end
+    end
+
+    def run_validators(validators, request)
+      validation_errors = []
+
+      ActiveSupport::Notifications.instrument('endpoint_run_validators.grape', endpoint: self, validators: validators, request: request) do
+        validators.each do |validator|
+          validator.validate(request)
+        rescue Grape::Exceptions::Validation => e
+          validation_errors << e
+          break if validator.fail_fast?
+        rescue Grape::Exceptions::ValidationArrayErrors => e
+          validation_errors.concat e.errors
+          break if validator.fail_fast?
+        end
+      end
+
+      validation_errors.any? && raise(Grape::Exceptions::ValidationErrors.new(errors: validation_errors, headers: header))
+    end
+
+    def run_filters(filters, type = :other)
+      ActiveSupport::Notifications.instrument('endpoint_run_filters.grape', endpoint: self, filters: filters, type: type) do
+        filters&.each { |filter| instance_eval(&filter) }
+      end
+      post_extension = DSL::InsideRoute.post_filter_methods(type)
+      extend post_extension if post_extension
+    end
+
+    %i[befores before_validations after_validations afters finallies].each do |method|
+      define_method method do
+        namespace_stackable(method)
+      end
+    end
+
+    def validations
+      return enum_for(:validations) unless block_given?
+
+      route_setting(:saved_validations)&.each do |saved_validation|
+        yield Grape::Validations::ValidatorFactory.create_validator(saved_validation)
+      end
+    end
+
+    def options?
+      options[:options_route_enabled] &&
+        env[Rack::REQUEST_METHOD] == Rack::OPTIONS
+    end
+
+    private
 
     def build_stack(helpers)
       stack = Grape::Middleware::Stack.new
@@ -338,86 +402,11 @@ module Grape
       Module.new { helpers.each { |mod_to_include| include mod_to_include } }
     end
 
-    private :build_stack, :build_helpers
-
-    def execute
-      @block&.call(self)
-    end
-
-    def helpers
-      lazy_initialize! && @helpers
-    end
-
-    def lazy_initialize!
-      return true if @lazy_initialized
-
-      @lazy_initialize_lock.synchronize do
-        return true if @lazy_initialized
-
-        @helpers = build_helpers&.tap { |mod| self.class.include mod }
-        @app = options[:app] || build_stack(@helpers)
-
-        @lazy_initialized = true
+    def build_response_cookies
+      response_cookies do |name, value|
+        cookie_value = value.is_a?(Hash) ? value : { value: value }
+        Rack::Utils.set_cookie_header! header, name, cookie_value
       end
-    end
-
-    def run_validators(validators, request)
-      validation_errors = []
-
-      ActiveSupport::Notifications.instrument('endpoint_run_validators.grape', endpoint: self, validators: validators, request: request) do
-        validators.each do |validator|
-          validator.validate(request)
-        rescue Grape::Exceptions::Validation => e
-          validation_errors << e
-          break if validator.fail_fast?
-        rescue Grape::Exceptions::ValidationArrayErrors => e
-          validation_errors.concat e.errors
-          break if validator.fail_fast?
-        end
-      end
-
-      validation_errors.any? && raise(Grape::Exceptions::ValidationErrors.new(errors: validation_errors, headers: header))
-    end
-
-    def run_filters(filters, type = :other)
-      ActiveSupport::Notifications.instrument('endpoint_run_filters.grape', endpoint: self, filters: filters, type: type) do
-        filters&.each { |filter| instance_eval(&filter) }
-      end
-      post_extension = DSL::InsideRoute.post_filter_methods(type)
-      extend post_extension if post_extension
-    end
-
-    def befores
-      namespace_stackable(:befores)
-    end
-
-    def before_validations
-      namespace_stackable(:before_validations)
-    end
-
-    def after_validations
-      namespace_stackable(:after_validations)
-    end
-
-    def afters
-      namespace_stackable(:afters)
-    end
-
-    def finallies
-      namespace_stackable(:finallies)
-    end
-
-    def validations
-      return enum_for(:validations) unless block_given?
-
-      route_setting(:saved_validations)&.each do |saved_validation|
-        yield Grape::Validations::ValidatorFactory.create_validator(**saved_validation)
-      end
-    end
-
-    def options?
-      options[:options_route_enabled] &&
-        env[Rack::REQUEST_METHOD] == Rack::OPTIONS
     end
   end
 end

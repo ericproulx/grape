@@ -26,8 +26,8 @@ module Grape
       # has completed
       module PostBeforeFilter
         def declared(passed_params, options = {}, declared_params = nil, params_nested_path = [])
-          options = options.reverse_merge(include_missing: true, include_parent_namespaces: true, evaluate_given: false)
-          declared_params ||= optioned_declared_params(**options)
+          options.reverse_merge!(include_missing: true, include_parent_namespaces: true, evaluate_given: false)
+          declared_params ||= optioned_declared_params(options[:include_parent_namespaces])
 
           res = if passed_params.is_a?(Array)
                   declared_array(passed_params, options, declared_params, params_nested_path)
@@ -79,7 +79,7 @@ module Grape
           else
             # If it is not a Hash then it does not have children.
             # Find its value or set it to nil.
-            return unless options[:include_missing] || passed_params.key?(declared_param)
+            return unless options[:include_missing] || passed_params.try(:key?, declared_param)
 
             rename_path = params_nested_path + [declared_param.to_s]
             renamed_param_name = renamed_params[rename_path]
@@ -107,7 +107,7 @@ module Grape
 
           if type == 'Hash' && !has_children
             {}
-          elsif type == 'Array' || (type&.start_with?('[') && type&.exclude?(','))
+          elsif type == 'Array' || (type&.start_with?('[') && type.exclude?(','))
             []
           elsif type == 'Set' || type&.start_with?('#<Set')
             Set.new
@@ -120,8 +120,8 @@ module Grape
           options[:stringify] ? declared_param.to_s : declared_param.to_sym
         end
 
-        def optioned_declared_params(**options)
-          declared_params = if options[:include_parent_namespaces]
+        def optioned_declared_params(include_parent_namespaces)
+          declared_params = if include_parent_namespaces
                               # Declared params including parent namespaces
                               route_setting(:declared_params)
                             else
@@ -199,10 +199,9 @@ module Grape
       # Redirect to a new url.
       #
       # @param url [String] The url to be redirect.
-      # @param options [Hash] The options used when redirect.
-      #                       :permanent, default false.
-      #                       :body, default a short message including the URL.
-      def redirect(url, permanent: false, body: nil, **_options)
+      # @param permanent [Boolean] default false.
+      # @param body default a short message including the URL.
+      def redirect(url, permanent: false, body: nil)
         body_message = body
         if permanent
           status 301
@@ -256,18 +255,6 @@ module Grape
         else
           header[Rack::CONTENT_TYPE]
         end
-      end
-
-      # Set or get a cookie
-      #
-      # @example
-      #   cookies[:mycookie] = 'mycookie val'
-      #   cookies['mycookie-string'] = 'mycookie string val'
-      #   cookies[:more] = { value: '123', expires: Time.at(0) }
-      #   cookies.delete :more
-      #
-      def cookies
-        @cookies ||= Cookies.new
       end
 
       # Allows you to define the response body as something other than the
@@ -448,11 +435,15 @@ module Grape
       def entity_representation_for(entity_class, object, options)
         embeds = { env: env }
         embeds[:version] = env[Grape::Env::API_VERSION] if env.key?(Grape::Env::API_VERSION)
-        entity_class.represent(object, **embeds.merge(options))
+        entity_class.represent(object, **embeds, **options)
       end
 
       def http_version
-        env['HTTP_VERSION'] || env[Rack::SERVER_PROTOCOL]
+        env.fetch(Grape::Http::Headers::HTTP_VERSION) { env[Rack::SERVER_PROTOCOL] }
+      end
+
+      def api_format(format)
+        env[Grape::Env::API_FORMAT] = format
       end
 
       def context

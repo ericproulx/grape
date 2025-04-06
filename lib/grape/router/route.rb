@@ -5,14 +5,22 @@ module Grape
     class Route < BaseRoute
       extend Forwardable
 
+      FORWARD_MATCH_METHOD = ->(input, pattern) { input.start_with?(pattern.origin) }
+      NON_FORWARD_MATCH_METHOD = ->(input, pattern) { pattern.match?(input) }
+
       attr_reader :app, :request_method
 
       def_delegators :pattern, :path, :origin
 
-      def initialize(method, pattern, **options)
+      def initialize(method, origin, path, options)
         @request_method = upcase_method(method)
-        @pattern = Grape::Router::Pattern.new(pattern, **options)
-        super(**options)
+        @pattern = Grape::Router::Pattern.new(origin, path, options)
+        @match_function = options[:forward_match] ? FORWARD_MATCH_METHOD : NON_FORWARD_MATCH_METHOD
+        super(options)
+      end
+
+      def convert_to_head_request!
+        @request_method = Rack::HEAD
       end
 
       def exec(env)
@@ -27,7 +35,7 @@ module Grape
       def match?(input)
         return false if input.blank?
 
-        options[:forward_match] ? input.start_with?(pattern.origin) : pattern.match?(input)
+        @match_function.call(input, pattern)
       end
 
       def params(input = nil)
@@ -42,7 +50,7 @@ module Grape
       private
 
       def params_without_input
-        pattern.captures_default.merge(attributes.params)
+        @params_without_input ||= pattern.captures_default.merge(attributes.params)
       end
 
       def upcase_method(method)

@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 describe Grape::Middleware::Versioner::AcceptVersionHeader do
-  subject { described_class.new(app, **(@options || {})) }
+  subject { described_class.new(app, @options) }
 
   let(:app) { ->(env) { [200, env, env] } }
 
@@ -11,6 +11,18 @@ describe Grape::Middleware::Versioner::AcceptVersionHeader do
         using: :accept_version_header
       }
     }
+  end
+
+  describe '#bad encoding' do
+    before do
+      @options[:versions] = %w[v1]
+    end
+
+    it 'does not raise an error' do
+      expect do
+        subject.call(Grape::Http::Headers::HTTP_ACCEPT_VERSION => "\x80")
+      end.to throw_symbol(:error, status: 406, headers: { Grape::Http::Headers::X_CASCADE => 'pass' }, message: 'The requested version is not supported.')
+    end
   end
 
   context 'api.version' do

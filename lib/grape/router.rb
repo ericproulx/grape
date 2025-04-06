@@ -4,12 +4,30 @@ module Grape
   class Router
     attr_reader :map, :compiled
 
+    # Taken from Rails
+    #     normalize_path("/foo")  # => "/foo"
+    #     normalize_path("/foo/") # => "/foo"
+    #     normalize_path("foo")   # => "/foo"
+    #     normalize_path("")      # => "/"
+    #     normalize_path("/%ab")  # => "/%AB"
+    # https://github.com/rails/rails/blob/00cc4ff0259c0185fe08baadaa40e63ea2534f6e/actionpack/lib/action_dispatch/journey/router/utils.rb#L19
     def self.normalize_path(path)
+      return +'/' unless path
+
+      # Fast path for the overwhelming majority of paths that don't need to be normalized
+      return path.dup if path == '/' || (path.start_with?('/') && !(path.end_with?('/') || path.match?(%r{%|//})))
+
+      # Slow path
+      encoding = path.encoding
       path = +"/#{path}"
       path.squeeze!('/')
-      path.sub!(%r{/+\Z}, '')
-      path = '/' if path == ''
-      path
+
+      unless path == '/'
+        path.delete_suffix!('/')
+        path.gsub!(/(%[a-f0-9]{2})/) { ::Regexp.last_match(1).upcase }
+      end
+
+      path.force_encoding(encoding)
     end
 
     def initialize
@@ -38,8 +56,8 @@ module Grape
       map[route.request_method] << route
     end
 
-    def associate_routes(pattern, **options)
-      Grape::Router::GreedyRoute.new(pattern: pattern, **options).then do |greedy_route|
+    def associate_routes(pattern, options)
+      Grape::Router::GreedyRoute.new(pattern, options).then do |greedy_route|
         @neutral_regexes << greedy_route.to_regexp(@neutral_map.length)
         @neutral_map << greedy_route
       end
@@ -93,7 +111,7 @@ module Grape
             return response unless cascade
 
             # we need to close the body if possible before dismissing
-            response[2].close if response[2].respond_to?(:close)
+            response[2].try(:close)
           end
         end
       end
@@ -107,7 +125,7 @@ module Grape
 
       route = match?(input, '*')
 
-      return last_neighbor_route.endpoint.call(env) if last_neighbor_route && last_response_cascade && route
+      return last_neighbor_route.options[:endpoint].call(env) if last_neighbor_route && last_response_cascade && route
 
       last_response_cascade = cascade_or_return_response.call(process_route(route, env)) if route
 
@@ -152,8 +170,8 @@ module Grape
 
     def call_with_allow_headers(env, route)
       prepare_env_from_route(env, route)
-      env[Grape::Env::GRAPE_ALLOWED_METHODS] = route.allow_header.join(', ').freeze
-      route.endpoint.call(env)
+      env[Grape::Env::GRAPE_ALLOWED_METHODS] = route.options[:allow_header]
+      route.options[:endpoint].call(env)
     end
 
     def prepare_env_from_route(env, route)
