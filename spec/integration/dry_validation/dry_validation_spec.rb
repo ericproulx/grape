@@ -1,66 +1,6 @@
 # frozen_string_literal: true
 
 describe 'Dry::Schema', if: defined?(Dry::Schema) do
-  describe 'Grape::DSL::Validations' do
-    subject { app }
-
-    let(:app) do
-      Class.new do
-        include Grape::DSL::Validations
-      end
-    end
-
-    describe '.reset_validations!' do
-      before do
-        subject.namespace_stackable :declared_params, ['dummy']
-        subject.namespace_stackable :validations, ['dummy']
-        subject.namespace_stackable :params, ['dummy']
-        subject.route_setting :description, description: 'lol', params: ['dummy']
-        subject.reset_validations!
-      end
-
-      after do
-        subject.unset_route_setting :description
-      end
-
-      it 'resets declared params' do
-        expect(subject.namespace_stackable(:declared_params)).to be_empty
-      end
-
-      it 'resets validations' do
-        expect(subject.namespace_stackable(:validations)).to be_empty
-      end
-
-      it 'resets params' do
-        expect(subject.namespace_stackable(:params)).to be_empty
-      end
-
-      it 'does not reset documentation description' do
-        expect(subject.route_setting(:description)[:description]).to eq 'lol'
-      end
-    end
-
-    describe '.params' do
-      it 'returns a ParamsScope' do
-        expect(subject.params).to be_a Grape::Validations::ParamsScope
-      end
-
-      it 'evaluates block' do
-        expect { subject.params { raise 'foo' } }.to raise_error RuntimeError, 'foo'
-      end
-    end
-
-    describe '.contract' do
-      it 'saves the schema instance' do
-        expect(subject.contract(Dry::Schema.Params)).to be_a Grape::Validations::ContractScope
-      end
-
-      it 'errors without params or block' do
-        expect { subject.contract }.to raise_error(ArgumentError)
-      end
-    end
-  end
-
   describe 'Grape::Validations::ContractScope' do
     let(:validated_params) { {} }
     let(:app) do
