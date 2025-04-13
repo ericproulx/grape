@@ -3,6 +3,7 @@
 module Grape
   module Util
     class ApiDescription
+      
       def initialize(description, endpoint_configuration, &block)
         @endpoint_configuration = endpoint_configuration
         @attributes = { description: description }
