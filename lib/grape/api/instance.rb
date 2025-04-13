@@ -5,15 +5,15 @@ module Grape
     # The API Instance class, is the engine behind Grape::API. Each class that inherits
     # from this will represent a different API instance
     class Instance
-      extend Grape::DSL::Settings
-      extend Grape::DSL::Desc
-      extend Grape::DSL::Validations
       extend Grape::DSL::Callbacks
+      extend Grape::DSL::Desc
+      extend Grape::DSL::Helpers
       extend Grape::DSL::Logger
       extend Grape::DSL::Middleware
       extend Grape::DSL::RequestResponse
       extend Grape::DSL::Routing
-      extend Grape::DSL::Helpers
+      extend Grape::DSL::Settings
+      extend Grape::DSL::Validations
       extend Grape::Middleware::Auth::DSL
 
       Boolean = Grape::API::Boolean
