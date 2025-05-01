@@ -40,7 +40,7 @@ module Grape
         @configuration ||= eval_endpoint_config(@endpoint_configuration)
       end
 
-      def to_h
+      def settings
         @attributes
       end
 

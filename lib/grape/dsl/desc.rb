@@ -54,7 +54,7 @@ module Grape
         settings =
           if config_block
             endpoint_config = defined?(configuration) ? configuration : nil
-            Grape::Util::ApiDescription.new(description, endpoint_config, &config_block).to_h
+            Grape::Util::ApiDescription.new(description, endpoint_config, &config_block).settings
           else
             options.merge(description: description)
           end
