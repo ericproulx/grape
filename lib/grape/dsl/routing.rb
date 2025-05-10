@@ -81,6 +81,10 @@ module Grape
         namespace_inheritable(:do_not_document, true)
       end
 
+      def lint!
+        namespace_inheritable(:lint, true)
+      end
+
       def mount(mounts, *opts)
         mounts = { mounts => '/' } unless mounts.respond_to?(:each_pair)
         mounts.each_pair do |app, path|
