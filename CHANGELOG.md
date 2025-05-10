@@ -15,6 +15,7 @@
 * [#2557](https://github.com/ruby-grape/grape/pull/2557): Add `lint!` - [@ericproulx](https://github.com/ericproulx).
 * [#2561](https://github.com/ruby-grape/grape/pull/2561): Optimize hash alloc for middleware's default options - [@ericproulx](https://github.com/ericproulx).
 * [#2563](https://github.com/ruby-grape/grape/pull/2563): Update `Grape::Middleware::Auth::Base` - [@ericproulx](https://github.com/ericproulx).
+* [#1](https://github.com/ericproulx/grape/pull/1): Refactor `desc` DSL - [@ericproulx](https://github.com/ericproulx).
 * Your contribution here.
 
 #### Fixes
