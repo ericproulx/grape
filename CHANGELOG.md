@@ -1,4 +1,14 @@
-### 2.4.0 (Next)
+### 3.0.0 (Next)
+
+#### Features
+
+* Your contribution here.
+
+#### Fixes
+
+* Your contribution here.
+
+### 2.4.0 (2025-06-18)
 
 #### Features
 
@@ -15,7 +25,7 @@
 * [#2557](https://github.com/ruby-grape/grape/pull/2557): Add `lint!` - [@ericproulx](https://github.com/ericproulx).
 * [#2561](https://github.com/ruby-grape/grape/pull/2561): Optimize hash alloc for middleware's default options - [@ericproulx](https://github.com/ericproulx).
 * [#2563](https://github.com/ruby-grape/grape/pull/2563): Update `Grape::Middleware::Auth::Base` - [@ericproulx](https://github.com/ericproulx).
-* Your contribution here.
+* [#2571](https://github.com/ruby-grape/grape/pull/2571): Update RuboCop 1.75.8 - [@pieterocp](https://github.com/pieterocp).
 
 #### Fixes
 
@@ -26,7 +36,6 @@
 * [#2548](https://github.com/ruby-grape/grape/pull/2548): Formatting from header acts like versioning from header - [@ericproulx](https://github.com/ericproulx).
 * [#2552](https://github.com/ruby-grape/grape/pull/2552): Fix declared params optional array - [@ericproulx](https://github.com/ericproulx).
 * [#2553](https://github.com/ruby-grape/grape/pull/2553): Improve performance of query params parsing - [@ericproulx](https://github.com/ericproulx).
-* Your contribution here.
 
 ### 2.3.0 (2025-02-08)
 
