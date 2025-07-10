@@ -1,113 +1,16 @@
 # frozen_string_literal: true
 
 describe Grape::Validations::Validators::LengthValidator do
-  let_it_be(:app) do
-    Class.new(Grape::API) do
-      params do
-        requires :list, length: { min: 2, max: 3 }
-      end
-      post 'with_min_max' do
-      end
-
-      params do
-        requires :list, type: [Integer], length: { min: 2 }
-      end
-      post 'with_min_only' do
-      end
-
-      params do
-        requires :list, type: [Integer], length: { max: 3 }
-      end
-      post 'with_max_only' do
-      end
-
-      params do
-        requires :list, type: Integer, length: { max: 3 }
-      end
-      post 'type_is_not_array' do
-      end
-
-      params do
-        requires :list, type: Hash, length: { max: 3 }
-      end
-      post 'type_supports_length' do
-      end
-
-      params do
-        requires :list, type: [Integer], length: { min: -3 }
-      end
-      post 'negative_min' do
-      end
-
-      params do
-        requires :list, type: [Integer], length: { max: -3 }
-      end
-      post 'negative_max' do
-      end
-
-      params do
-        requires :list, type: [Integer], length: { min: 2.5 }
-      end
-      post 'float_min' do
-      end
-
-      params do
-        requires :list, type: [Integer], length: { max: 2.5 }
-      end
-      post 'float_max' do
-      end
-
-      params do
-        requires :list, type: [Integer], length: { min: 15, max: 3 }
-      end
-      post 'min_greater_than_max' do
-      end
-
-      params do
-        requires :list, type: [Integer], length: { min: 3, max: 3 }
-      end
-      post 'min_equal_to_max' do
-      end
-
-      params do
-        requires :list, type: [JSON], length: { min: 0 }
-      end
-      post 'zero_min' do
-      end
-
-      params do
-        requires :list, type: [JSON], length: { max: 0 }
-      end
-      post 'zero_max' do
-      end
-
-      params do
-        requires :list, type: [Integer], length: { min: 2, message: 'not match' }
-      end
-      post '/custom-message' do
-      end
-
-      params do
-        requires :code, length: { is: 2 }
-      end
-      post 'is' do
-      end
-
-      params do
-        requires :code, length: { is: -2 }
-      end
-      post 'negative_is' do
-      end
-
-      params do
-        requires :code, length: { is: 2, max: 10 }
-      end
-      post 'is_with_max' do
+  describe '/with_min_max' do
+    let(:app) do
+      Class.new(Grape::API) do
+        params do
+          requires :list, length: { min: 2, max: 3 }
+        end
+        post 'with_min_max'
       end
     end
-  end
 
-  describe '/with_min_max' do
     context 'when length is within limits' do
       it do
         post '/with_min_max', list: [1, 2]
@@ -134,6 +37,15 @@ describe Grape::Validations::Validators::LengthValidator do
   end
 
   describe '/with_max_only' do
+    let(:app) do
+      Class.new(Grape::API) do
+        params do
+          requires :list, type: [Integer], length: { max: 3 }
+        end
+        post 'with_max_only'
+      end
+    end
+
     context 'when length is less than limits' do
       it do
         post '/with_max_only', list: [1, 2]
@@ -152,6 +64,15 @@ describe Grape::Validations::Validators::LengthValidator do
   end
 
   describe '/with_min_only' do
+    let(:app) do
+      Class.new(Grape::API) do
+        params do
+          requires :list, type: [Integer], length: { min: 2 }
+        end
+        post 'with_min_only'
+      end
+    end
+
     context 'when length is greater than limit' do
       it do
         post '/with_min_only', list: [1, 2]
@@ -170,6 +91,15 @@ describe Grape::Validations::Validators::LengthValidator do
   end
 
   describe '/zero_min' do
+    let(:app) do
+      Class.new(Grape::API) do
+        params do
+          requires :list, type: [JSON], length: { min: 0 }
+        end
+        post 'zero_min'
+      end
+    end
+
     context 'when length is equal to the limit' do
       it do
         post '/zero_min', list: '[]'
@@ -188,6 +118,15 @@ describe Grape::Validations::Validators::LengthValidator do
   end
 
   describe '/zero_max' do
+    let(:app) do
+      Class.new(Grape::API) do
+        params do
+          requires :list, type: [JSON], length: { max: 0 }
+        end
+        post 'zero_max'
+      end
+    end
+
     context 'when length is within the limit' do
       it do
         post '/zero_max', list: '[]'
@@ -206,6 +145,15 @@ describe Grape::Validations::Validators::LengthValidator do
   end
 
   describe '/type_is_not_array' do
+    let(:app) do
+      Class.new(Grape::API) do
+        params do
+          requires :list, type: Integer, length: { max: 3 }
+        end
+        post 'type_is_not_array'
+      end
+    end
+
     context 'does not raise an error' do
       it do
         expect do
@@ -216,6 +164,15 @@ describe Grape::Validations::Validators::LengthValidator do
   end
 
   describe '/type_supports_length' do
+    let(:app) do
+      Class.new(Grape::API) do
+        params do
+          requires :list, type: Hash, length: { max: 3 }
+        end
+        post 'type_supports_length'
+      end
+    end
+
     context 'when length is within limits' do
       it do
         post 'type_supports_length', list: { key: 'value' }
@@ -234,6 +191,15 @@ describe Grape::Validations::Validators::LengthValidator do
   end
 
   describe '/negative_min' do
+    let(:app) do
+      Class.new(Grape::API) do
+        params do
+          requires :list, type: [Integer], length: { min: -3 }
+        end
+        post 'negative_min'
+      end
+    end
+
     context 'when min is negative' do
       it do
         expect { post 'negative_min', list: [12] }.to raise_error(ArgumentError, 'min must be an integer greater than or equal to zero')
@@ -242,6 +208,15 @@ describe Grape::Validations::Validators::LengthValidator do
   end
 
   describe '/negative_max' do
+    let(:app) do
+      Class.new(Grape::API) do
+        params do
+          requires :list, type: [Integer], length: { max: -3 }
+        end
+        post 'negative_max'
+      end
+    end
+
     context 'it raises an error' do
       it do
         expect { post 'negative_max', list: [12] }.to raise_error(ArgumentError, 'max must be an integer greater than or equal to zero')
@@ -250,6 +225,15 @@ describe Grape::Validations::Validators::LengthValidator do
   end
 
   describe '/float_min' do
+    let(:app) do
+      Class.new(Grape::API) do
+        params do
+          requires :list, type: [Integer], length: { min: 2.5 }
+        end
+        post 'float_min'
+      end
+    end
+
     context 'when min is not an integer' do
       it do
         expect { post 'float_min', list: [12] }.to raise_error(ArgumentError, 'min must be an integer greater than or equal to zero')
@@ -258,6 +242,15 @@ describe Grape::Validations::Validators::LengthValidator do
   end
 
   describe '/float_max' do
+    let(:app) do
+      Class.new(Grape::API) do
+        params do
+          requires :list, type: [Integer], length: { max: 2.5 }
+        end
+        post 'float_max'
+      end
+    end
+
     context 'when max is not an integer' do
       it do
         expect { post 'float_max', list: [12] }.to raise_error(ArgumentError, 'max must be an integer greater than or equal to zero')
@@ -266,6 +259,15 @@ describe Grape::Validations::Validators::LengthValidator do
   end
 
   describe '/min_greater_than_max' do
+    let(:app) do
+      Class.new(Grape::API) do
+        params do
+          requires :list, type: [Integer], length: { min: 15, max: 3 }
+        end
+        post 'min_greater_than_max'
+      end
+    end
+
     context 'raises an error' do
       it do
         expect { post 'min_greater_than_max', list: [1, 2] }.to raise_error(ArgumentError, 'min 15 cannot be greater than max 3')
@@ -274,6 +276,15 @@ describe Grape::Validations::Validators::LengthValidator do
   end
 
   describe '/min_equal_to_max' do
+    let(:app) do
+      Class.new(Grape::API) do
+        params do
+          requires :list, type: [Integer], length: { min: 3, max: 3 }
+        end
+        post 'min_equal_to_max'
+      end
+    end
+
     context 'when array meets expectations' do
       it do
         post 'min_equal_to_max', list: [1, 2, 3]
@@ -300,6 +311,15 @@ describe Grape::Validations::Validators::LengthValidator do
   end
 
   describe '/custom-message' do
+    let(:app) do
+      Class.new(Grape::API) do
+        params do
+          requires :list, type: [Integer], length: { min: 2, message: 'not match' }
+        end
+        post '/custom-message'
+      end
+    end
+
     context 'is within limits' do
       it do
         post '/custom-message', list: [1, 2, 3]
@@ -318,6 +338,15 @@ describe Grape::Validations::Validators::LengthValidator do
   end
 
   describe '/is' do
+    let(:app) do
+      Class.new(Grape::API) do
+        params do
+          requires :code, length: { is: 2 }
+        end
+        post 'is'
+      end
+    end
+
     context 'when length is exact' do
       it do
         post 'is', code: 'ZZ'
@@ -352,6 +381,15 @@ describe Grape::Validations::Validators::LengthValidator do
   end
 
   describe '/negative_is' do
+    let(:app) do
+      Class.new(Grape::API) do
+        params do
+          requires :code, length: { is: -2 }
+        end
+        post 'negative_is'
+      end
+    end
+
     context 'when `is` is negative' do
       it do
         expect { post 'negative_is', code: 'ZZ' }.to raise_error(ArgumentError, 'is must be an integer greater than zero')
@@ -360,6 +398,15 @@ describe Grape::Validations::Validators::LengthValidator do
   end
 
   describe '/is_with_max' do
+    let(:app) do
+      Class.new(Grape::API) do
+        params do
+          requires :code, length: { is: 2, max: 10 }
+        end
+        post 'is_with_max'
+      end
+    end
+
     context 'when `is` is combined with max' do
       it do
         expect { post 'is_with_max', code: 'ZZ' }.to raise_error(ArgumentError, 'is cannot be combined with min or max')

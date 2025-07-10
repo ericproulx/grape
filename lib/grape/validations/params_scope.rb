@@ -3,15 +3,17 @@
 module Grape
   module Validations
     class ParamsScope
+      include Grape::DSL::Parameters
+
       attr_accessor :element, :parent, :index
       attr_reader :type, :params_meeting_dependency
-
-      include Grape::DSL::Parameters
 
       # There are a number of documentation options on entities that don't have
       # corresponding validators. Since there is nowhere that enumerates them all,
       # we maintain a list of them here and skip looking up validators for them.
       RESERVED_DOCUMENTATION_KEYWORDS = %i[as required param_type is_array format example].freeze
+
+      ValidatorOptions = Struct.new(:attributes, :options, :required, :params_scope, :opts)
 
       class Attr
         attr_accessor :key, :scope
@@ -85,7 +87,7 @@ module Grape
       def should_validate?(parameters)
         scoped_params = params(parameters)
 
-        return false if @optional && (scoped_params.blank? || all_element_blank?(scoped_params))
+        return false if @optional && scoped_params.blank?
         return false unless meets_dependency?(scoped_params, parameters)
         return true if parent.nil?
 
@@ -325,36 +327,19 @@ module Grape
       def validates(attrs, validations)
         doc = AttributesDoc.new @api, self
         doc.extract_details validations
+        doc.type = infer_coercion_type(validations)
+        doc.values = extract_value_option(validations[:values])
+        except_values = extract_value_option(validations[:except_values])
 
-        coerce_type = infer_coercion(validations)
-
-        doc.type = coerce_type
-
-        default = validations[:default]
-        values = validations[:values].is_a?(Hash) ? validations.dig(:values, :value) : validations[:values]
-
-        doc.values = values
-
-        except_values = validations[:except_values].is_a?(Hash) ? validations.dig(:except_values, :value) : validations[:except_values]
-
-        # NB. values and excepts should be nil, Proc, Array, or Range.
-        # Specifically, values should NOT be a Hash
-
-        # use values or excepts to guess coerce type when stated type is Array
-        coerce_type = guess_coerce_type(coerce_type, values, except_values)
-
-        # default value should be present in values array, if both exist and are not procs
-        check_incompatible_option_values(default, values, except_values)
-
-        # type should be compatible with values array, if both exist
-        validate_value_coercion(coerce_type, values, except_values)
+        check_values_coercing!(doc.type, doc.values, except_values)
+        check_default_inclusion!(validations[:default], doc.values, except_values)
 
         doc.document attrs
 
         opts = derive_validator_options(validations)
 
         # Validate for presence before any other validators
-        validates_presence(validations, attrs, doc, opts)
+        validates_presence(validations.delete(:presence), attrs, doc, opts)
 
         # Before we run the rest of the validators, let's handle
         # whatever coercion so that we are working with correctly
@@ -382,29 +367,16 @@ module Grape
       #   parameter declaration
       # @return [class-like] type to which the parameter will be coerced
       # @raise [ArgumentError] if the given type options are invalid
-      def infer_coercion(validations)
-        raise ArgumentError, ':type may not be supplied with :types' if validations.key?(:type) && validations.key?(:types)
+      def infer_coercion_type(validations)
+        coerce_options = validations.extract!(:type, :types)
+        return if coerce_options.empty?
 
-        validations[:coerce] = (options_key?(:type, :value, validations) ? validations[:type][:value] : validations[:type]) if validations.key?(:type)
-        validations[:coerce_message] = (options_key?(:type, :message, validations) ? validations[:type][:message] : nil) if validations.key?(:type)
-        validations[:coerce] = (options_key?(:types, :value, validations) ? validations[:types][:value] : validations[:types]) if validations.key?(:types)
-        validations[:coerce_message] = (options_key?(:types, :message, validations) ? validations[:types][:message] : nil) if validations.key?(:types)
+        raise ArgumentError, ':type may not be supplied with :types' if coerce_options.size == 2
 
-        validations.delete(:types) if validations.key?(:types)
-
-        coerce_type = validations[:coerce]
-
-        # Special case - when the argument is a single type that is a
-        # variant-type collection.
-        if Types.multiple?(coerce_type) && validations.key?(:type)
-          validations[:coerce] = Types::VariantCollectionCoercer.new(
-            coerce_type,
-            validations.delete(:coerce_with)
-          )
+        add_validations_coercion_options(coerce_options[:type] || coerce_options[:types], validations).tap do |coerce_type|
+          # special case of variant-member-type see https://github.com/ruby-grape/grape/tree/master?tab=readme-ov-file#multiple-allowed-types
+          validations[:coerce_variant_collection] = Types.multiple?(coerce_type) if coerce_options.key?(:type)
         end
-        validations.delete(:type)
-
-        coerce_type
       end
 
       # Enforce correct usage of :coerce_with parameter.
@@ -418,7 +390,7 @@ module Grape
 
         # but not special JSON types, which
         # already imply coercion method
-        return if [JSON, Array[JSON]].exclude? validations[:coerce]
+        return if Types::DISALLOWED_COERCE_TYPES.exclude? validations[:coerce]
 
         raise ArgumentError, 'coerce_with disallowed for type: JSON'
       end
@@ -432,95 +404,77 @@ module Grape
       def coerce_type(validations, attrs, doc, opts)
         check_coerce_with(validations)
 
-        return unless validations.key?(:coerce)
+        coerce_validations_options = validations.extract!(:coerce, :coerce_with, :coerce_message, :coerce_variant_collection)
+        return unless coerce_validations_options[:coerce]
 
         coerce_options = {
-          type: validations[:coerce],
-          method: validations[:coerce_with],
-          message: validations[:coerce_message]
+          type: coerce_validations_options[:coerce],
+          method: coerce_validations_options[:coerce_with],
+          message: coerce_validations_options[:coerce_message],
+          variant_collection: coerce_validations_options[:coerce_variant_collection]
         }
-        validate('coerce', coerce_options, attrs, doc, opts)
-        validations.delete(:coerce_with)
-        validations.delete(:coerce)
-        validations.delete(:coerce_message)
+
+        validate(:coerce, coerce_options, attrs, doc, opts)
       end
 
-      def guess_coerce_type(coerce_type, *values_list)
-        return coerce_type unless coerce_type == Array
-
-        values_list.each do |values|
-          next if !values || values.is_a?(Proc)
-          return values.first.class if values.is_a?(Range) || !values.empty?
-        end
-        coerce_type
-      end
-
-      def check_incompatible_option_values(default, values, except_values)
+      def check_default_inclusion!(default, values, except_values)
         return unless default && !default.is_a?(Proc)
 
-        raise Grape::Exceptions::IncompatibleOptionValues.new(:default, default, :values, values) if values && !values.is_a?(Proc) && !Array(default).all? { |def_val| values.include?(def_val) }
+        raise Grape::Exceptions::IncompatibleOptionValues.new(:default, default, :values, values) if values && !values.is_a?(Proc) && !Array(default).all? { |def_value| values.include?(def_value) }
 
-        return unless except_values && !except_values.is_a?(Proc) && Array(default).any? { |def_val| except_values.include?(def_val) }
+        return unless except_values && !except_values.is_a?(Proc) && Array(default).any? { |def_value| except_values.include?(def_value) }
 
         raise Grape::Exceptions::IncompatibleOptionValues.new(:default, default, :except, except_values)
       end
 
       def validate(type, options, attrs, doc, opts)
-        validator_options = {
-          attributes: attrs,
-          options: options,
-          required: doc.required,
-          params_scope: self,
-          opts: opts,
-          validator_class: Validations.require_validator(type)
-        }
-        @api.namespace_stackable(:validations, validator_options)
-      end
-
-      def validate_value_coercion(coerce_type, *values_list)
-        return unless coerce_type
-
-        coerce_type = coerce_type.first if coerce_type.is_a?(Enumerable)
-        values_list.each do |values|
-          next if !values || values.is_a?(Proc)
-
-          value_types = values.is_a?(Range) ? [values.begin, values.end].compact : values
-          value_types = value_types.map { |type| Grape::API::Boolean.build(type) } if coerce_type == Grape::API::Boolean
-          raise Grape::Exceptions::IncompatibleOptionValues.new(:type, coerce_type, :values, values) unless value_types.all?(coerce_type)
-        end
-      end
-
-      def extract_message_option(attrs)
-        return nil unless attrs.is_a?(Array)
-
-        opts = attrs.last.is_a?(Hash) ? attrs.pop : {}
-        opts.key?(:message) && !opts[:message].nil? ? opts.delete(:message) : nil
-      end
-
-      def options_key?(type, key, validations)
-        validations[type].respond_to?(:key?) && validations[type].key?(key) && !validations[type][key].nil?
-      end
-
-      def all_element_blank?(scoped_params)
-        scoped_params.respond_to?(:all?) && scoped_params.all?(&:blank?)
+        validator_class = Validations.require_validator(type)
+        @api.namespace_stackable(:validations, validator_class.new(attrs, options, doc.required, self, opts))
       end
 
       # Validators don't have access to each other and they don't need, however,
       # some validators might influence others, so their options should be shared
       def derive_validator_options(validations)
-        allow_blank = validations[:allow_blank]
-
         {
-          allow_blank: allow_blank.is_a?(Hash) ? allow_blank[:value] : allow_blank,
+          allow_blank: extract_value_option(validations[:allow_blank]) || false,
           fail_fast: validations.delete(:fail_fast) || false
         }
       end
 
-      def validates_presence(validations, attrs, doc, opts)
-        return unless validations.key?(:presence) && validations[:presence]
+      def validates_presence(presence, attrs, doc, opts)
+        return unless presence
 
-        validate('presence', validations.delete(:presence), attrs, doc, opts)
-        validations.delete(:message) if validations.key?(:message)
+        validate(:presence, presence, attrs, doc, opts)
+      end
+
+      def extract_value_option(option)
+        return option unless option.is_a?(Hash)
+
+        option[:value]
+      end
+
+      def add_validations_coercion_options(coercer_options, validations)
+        if coercer_options.is_a?(Hash)
+          options = coercer_options.extract!(:value, :message)
+          validations[:coerce_message] = options[:message]
+          validations[:coerce] = options[:value]
+        else
+          validations[:coerce] = coercer_options
+        end
+      end
+
+      def check_values_coercing!(type, *values_list)
+        return unless type && values_list.any? { |v| v.present? && !v.is_a?(Proc) }
+
+        coerce_type = type == Array ? values_list.find(&:itself).first.class : type
+        coerce_type = coerce_type.first if coerce_type.is_a?(Enumerable)
+        values_list.each do |values|
+          next if values.blank?
+
+          value_types = values.is_a?(Range) ? [values.begin, values.end].compact : values
+          value_types = value_types.map { |type| Grape::API::Boolean.build(type) } if coerce_type == Grape::API::Boolean
+          raise Grape::Exceptions::IncompatibleOptionValues.new(:type, coerce_type, :values, values) unless value_types.all?(coerce_type)
+        end
       end
     end
   end

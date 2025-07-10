@@ -9,6 +9,18 @@ describe Grape::Validations::ParamsScope do
     subject
   end
 
+  describe 'only integers' do
+    subject { Class.new(Grape::API) }
+
+    context 'values are not integers' do
+      it 'raises exception' do
+        expect do
+          subject.params { optional :numbers, type: Set[Integer], values: %w[a b] }
+        end.to raise_error Grape::Exceptions::IncompatibleOptionValues
+      end
+    end
+  end
+
   context 'when using custom types' do
     let(:custom_type) do
       Class.new do
